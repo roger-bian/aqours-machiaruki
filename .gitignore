@@ -152,3 +152,7 @@ cython_debug/
 #.idea/
 
 .DS_Store
+
+# downloaded/cached by app.py's fetch_kml() and cache_images()
+assets/machiaruki.kml
+assets/img/
