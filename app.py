@@ -2,7 +2,7 @@ import os
 
 os.environ['OGR_SKIP'] = 'LIBKML'
 
-from dash import Dash, dcc, html, Input, Output, no_update
+from dash import Dash, dcc, html, Input, Output, State, no_update, Patch
 import plotly.express as px
 import pandas as pd
 import geotable
@@ -106,15 +106,56 @@ t = geotable.load(fetch_kml())
 t_clean = df_clean(t)
 
 
+MEMBER_COLORS = {
+    '高海千歌': '#F0A20B',
+    '桜内梨子': '#E9A9E8',
+    '松浦果南': '#13E8AE',
+    '黒澤ダイヤ': '#F23B4C',
+    '渡辺曜': '#49B9F9',
+    '津島善子': '#898989',
+    '国木田花丸': '#E6D617',
+    '小原鞠莉': '#AE58EB',
+    '黒澤ルビィ': '#FB75E4'
+}
+
+# preview-only in-memory tracker for collected stamps/badges - resets on
+# server restart; will be replaced by real DB reads/writes once one exists.
+# marker color reflects how many of the two flags are collected (0/1/2)
+DEFAULT_MARKER_COLOR = '#636efa'
+ONE_COLLECTED_COLOR = '#f39c12'
+BOTH_COLLECTED_COLOR = '#2ecc71'
+DEFAULT_MARKER_SIZE = 36
+
+collection_state = {i: {'stamp': False, 'badge': False} for i in range(len(t_clean))}
+
+
+def _marker_style():
+    colors = []
+    for i in range(len(t_clean)):
+        collected_count = sum(collection_state[i].values())
+        if collected_count == 2:
+            colors.append(BOTH_COLLECTED_COLOR)
+        elif collected_count == 1:
+            colors.append(ONE_COLLECTED_COLOR)
+        else:
+            colors.append(DEFAULT_MARKER_COLOR)
+    return colors
+
+
 fig = px.scatter_mapbox(
     t_clean,
     lat=t_clean.geometry_object.apply(lambda x: x.y),
     lon=t_clean.geometry_object.apply(lambda x: x.x),
+    text=[str(i + 1) for i in range(len(t_clean))],
     opacity=0.7,
     zoom=10,
-    height=700,
     mapbox_style='open-street-map'
     )
+fig.update_layout(margin=dict(l=0, r=0, t=0, b=0), uirevision='constant')
+fig.update_traces(marker=dict(size=DEFAULT_MARKER_SIZE, color=DEFAULT_MARKER_COLOR),
+                  textposition='middle center',
+                  textfont=dict(color='white', size=16),
+                  selector=dict(mode='markers+text'))
 
 
 g = geocoder.ip('me')
@@ -126,62 +167,81 @@ fig.add_scattermapbox(
     opacity=0.8
 )
 
-
-fig.update_traces(marker=dict(size=12),
-                  selector=dict(mode='markers'))
-
 # turn off native plotly.js hover effects - make sure to use
 # hoverinfo="none" rather than "skip" which also halts events.
 fig.update_traces(hoverinfo="none", hovertemplate=None)
 
 
 
-app = Dash(__name__)
+# the panel is a plain fixed-position div (not dcc.Tooltip) so it can be
+# centered in the viewport regardless of where the tapped point is - this
+# also matters on mobile, where there's no hover to anchor a tooltip to
+PANEL_BASE_STYLE = {
+    'display': 'none',
+    'position': 'fixed',
+    'top': '50%',
+    'left': '50%',
+    'transform': 'translate(-50%, -50%)',
+    'z-index': '1000',
+    'background-color': 'white',
+    'width': '300px',
+    'max-width': '90vw',
+    'max-height': '85vh',
+    'overflow-y': 'auto',
+    'box-shadow': '0 4px 20px rgba(0, 0, 0, 0.3)',
+    'border-radius': '8px',
+    'padding': '16px',
+    'white-space': 'normal',
+    'text-align': 'center',
+}
+
+
+def _panel_style(visible):
+    return {**PANEL_BASE_STYLE, 'display': 'block' if visible else 'none'}
+
+
+# invisible full-screen layer behind the panel but above the map - tapping
+# anywhere outside the panel (including on another marker) hits this and
+# closes the panel, since Plotly has no click event for "empty map area"
+# to key off of directly
+BACKDROP_STYLE = {
+    'display': 'none',
+    'position': 'fixed',
+    'top': '0',
+    'left': '0',
+    'right': '0',
+    'bottom': '0',
+    'z-index': '999',
+    'background-color': 'rgba(0, 0, 0, 0.2)',
+}
+
+
+def _backdrop_style(visible):
+    return {**BACKDROP_STYLE, 'display': 'block' if visible else 'none'}
+
+
+# the panel's checklist/close-button ids only exist once its children are
+# rendered by a callback, not in this initial static layout
+app = Dash(__name__, suppress_callback_exceptions=True)
 
 app.layout = html.Div([
-    html.H1('沼津 まちあるき スタンプ 設置店舗', style={'text-align': 'center'}),
-    dcc.Graph(id="graph-basic-2", figure=fig, clear_on_unhover=True, config={'scrollZoom': True}),
-    dcc.Tooltip(id="graph-tooltip"),
-])
+    dcc.Graph(
+        id="graph-basic-2",
+        figure=fig,
+        config={'scrollZoom': True},
+        style={'height': '100vh', 'width': '100vw'},
+    ),
+    html.Div(id="panel-backdrop", n_clicks=0, style=_backdrop_style(False)),
+    html.Div(id="detail-panel", style=_panel_style(False)),
+    dcc.Store(id="selected-point"),
+], style={'margin': 0, 'padding': 0})
 
 
-@app.callback(
-    Output("graph-tooltip", "show"),
-    Output("graph-tooltip", "bbox"),
-    Output("graph-tooltip", "children"),
-    Input("graph-basic-2", "hoverData"),
-)
-
-
-def display_hover(hoverData):
-    if hoverData is None:
-        return False, no_update, no_update
-
-    # demo only shows the first point, but other points may also be available
-    pt = hoverData["points"][0]
-    bbox = pt["bbox"]
-    num = pt["pointNumber"]
-
-    # don't show hover data for current location marker
-    if [pt['lat'], pt['lon']] == g.latlng:
-        return False, no_update, no_update
-
+def _build_info_children(num):
     t_row = t_clean.iloc[num]
     img_src = t_row['img']
     name = t_row['Name']
-
     member = t_row['member']
-    member_colors = {
-        '高海千歌': '#F0A20B',
-        '桜内梨子': '#E9A9E8',
-        '松浦果南': '#13E8AE',
-        '黒澤ダイヤ': '#F23B4C',
-        '渡辺曜': '#49B9F9',
-        '津島善子': '#898989',
-        '国木田花丸': '#E6D617',
-        '小原鞠莉': '#AE58EB',
-        '黒澤ルビィ': '#FB75E4'
-    }
 
     address = t_row['address']
     address_r = [html.B('[住所]'), html.Br()]
@@ -201,18 +261,107 @@ def display_hover(hoverData):
         holidays_r.append(i)
         holidays_r.append(html.Br())
 
-    children = [
-        html.Div([
-            html.Img(src=img_src, style={"width": "100%"}),
-            *([html.P(member, style={"color": member_colors.get(member, "black")})] if member else []),
-            html.H3(html.B(name), style={"color": "darkblue", "overflow-wrap": "break-word"}),
-            html.P(address_r),
-            html.P(hours_r),
-            html.P(holidays_r)
-        ], style={'width': '300px', 'white-space': 'normal'})
+    return [
+        html.Img(src=img_src, style={"width": "100%"}),
+        *([html.P(member, style={"color": MEMBER_COLORS.get(member, "black"), "margin-bottom": "0"})] if member else []),
+        html.H3(html.B(name), style={"color": "darkblue", "overflow-wrap": "break-word", "margin-top": "0"}),
+        html.P(address_r),
+        html.P(hours_r),
+        html.P(holidays_r),
     ]
 
-    return True, bbox, children
+
+@app.callback(
+    Output("detail-panel", "style"),
+    Output("detail-panel", "children"),
+    Output("selected-point", "data"),
+    Output("panel-backdrop", "style"),
+    Input("graph-basic-2", "clickData"),
+)
+def display_click(clickData):
+    if clickData is None:
+        return no_update, no_update, no_update, no_update
+
+    pt = clickData["points"][0]
+    num = pt["pointNumber"]
+
+    # don't pin the panel for taps on the current location marker
+    if [pt['lat'], pt['lon']] == g.latlng:
+        return no_update, no_update, no_update, no_update
+
+    children = [
+        html.Button('✕', id='close-panel', n_clicks=0, style={
+            'float': 'right', 'border': 'none', 'background': 'none',
+            'font-size': '16px', 'cursor': 'pointer',
+        }),
+        *_build_info_children(num),
+        dcc.Checklist(
+            id='collection-checklist',
+            options=[
+                {'label': 'スタンプ', 'value': 'stamp'},
+                {'label': '缶バッジ', 'value': 'badge'},
+            ],
+            value=[key for key, collected in collection_state[num].items() if collected],
+            style={'margin-top': '10px'},
+        ),
+    ]
+
+    return _panel_style(True), children, num, _backdrop_style(True)
+
+
+@app.callback(
+    Output("graph-basic-2", "figure"),
+    Input("collection-checklist", "value"),
+    State("selected-point", "data"),
+    prevent_initial_call=True,
+)
+def toggle_collection(value, num):
+    if num is None:
+        return no_update
+
+    new_state = {'stamp': 'stamp' in value, 'badge': 'badge' in value}
+    # the checklist also fires this callback once when it's first mounted
+    # (seeded with the point's existing state), despite prevent_initial_call -
+    # skip the no-op so opening a panel doesn't push a pointless update
+    if new_state == collection_state[num]:
+        return no_update
+    collection_state[num] = new_state
+
+    # patch only the marker color array in place, rather than sending back
+    # the whole figure - a full figure replacement re-sends the mapbox
+    # center/zoom baked in at server startup, which was resetting the
+    # user's current pan/zoom on every toggle regardless of uirevision
+    patch = Patch()
+    patch['data'][0]['marker']['color'] = _marker_style()
+    return patch
+
+
+@app.callback(
+    Output("detail-panel", "style", allow_duplicate=True),
+    Output("panel-backdrop", "style", allow_duplicate=True),
+    Input("close-panel", "n_clicks"),
+    prevent_initial_call=True,
+)
+def close_panel(n_clicks):
+    # the button is newly mounted each time the panel opens (it lives inside
+    # detail-panel's dynamically-rendered children), so this callback also
+    # fires once with the initial n_clicks=0 despite prevent_initial_call -
+    # only a real click (n_clicks > 0) should actually close the panel
+    if not n_clicks:
+        return no_update, no_update
+    return _panel_style(False), _backdrop_style(False)
+
+
+@app.callback(
+    Output("detail-panel", "style", allow_duplicate=True),
+    Output("panel-backdrop", "style", allow_duplicate=True),
+    Input("panel-backdrop", "n_clicks"),
+    prevent_initial_call=True,
+)
+def close_via_backdrop(n_clicks):
+    if not n_clicks:
+        return no_update, no_update
+    return _panel_style(False), _backdrop_style(False)
 
 
 if __name__ == "__main__":
