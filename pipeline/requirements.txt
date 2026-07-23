@@ -1,0 +1,14 @@
+# Uses the `aqours` pyenv virtualenv (see .python-version). GDAL requires
+# the native library/headers first: `sudo apt-get install libgdal-dev
+# gdal-bin`. The pinned GDAL== version below must match `gdal-config
+# --version` on the system, or the pip install fails to build - re-pin and
+# re-check after any GDAL system package upgrade. See CLAUDE.md for the
+# OGR_SKIP=LIBKML gotcha (set in app/kml.py) that this depends on.
+geotable
+GDAL==3.12.2
+
+fastapi
+uvicorn[standard]
+psycopg2-binary
+requests
+python-dotenv
