@@ -128,24 +128,37 @@ DEFAULT_MARKER_SIZE = 36
 
 collection_state = {i: {'stamp': False, 'badge': False} for i in range(len(t_clean))}
 
+ALL_LATS = t_clean.geometry_object.apply(lambda x: x.y).tolist()
+ALL_LONS = t_clean.geometry_object.apply(lambda x: x.x).tolist()
 
-def _marker_style():
-    colors = []
+
+def _color_for(i):
+    collected_count = sum(collection_state[i].values())
+    if collected_count == 2:
+        return BOTH_COLLECTED_COLOR
+    if collected_count == 1:
+        return ONE_COLLECTED_COLOR
+    return DEFAULT_MARKER_COLOR
+
+
+def _visible_indices(active_filters):
+    active = set(active_filters or [])
+    if not active:
+        return list(range(len(t_clean)))
+    indices = []
     for i in range(len(t_clean)):
-        collected_count = sum(collection_state[i].values())
-        if collected_count == 2:
-            colors.append(BOTH_COLLECTED_COLOR)
-        elif collected_count == 1:
-            colors.append(ONE_COLLECTED_COLOR)
-        else:
-            colors.append(DEFAULT_MARKER_COLOR)
-    return colors
+        state = collection_state[i]
+        stamp_match = 'stamp_missing' in active and not state['stamp']
+        badge_match = 'badge_missing' in active and not state['badge']
+        if stamp_match or badge_match:
+            indices.append(i)
+    return indices
 
 
 fig = px.scatter_mapbox(
     t_clean,
-    lat=t_clean.geometry_object.apply(lambda x: x.y),
-    lon=t_clean.geometry_object.apply(lambda x: x.x),
+    lat=ALL_LATS,
+    lon=ALL_LONS,
     text=[str(i + 1) for i in range(len(t_clean))],
     opacity=0.7,
     zoom=10,
@@ -220,6 +233,21 @@ def _backdrop_style(visible):
     return {**BACKDROP_STYLE, 'display': 'block' if visible else 'none'}
 
 
+# small always-on floating control, separate from the tap-to-pin panel -
+# filters which markers are drawn rather than opening/closing anything
+FILTER_PANEL_STYLE = {
+    'position': 'fixed',
+    'top': '10px',
+    'left': '10px',
+    'z-index': '900',
+    'background-color': 'white',
+    'padding': '8px 12px',
+    'border-radius': '8px',
+    'box-shadow': '0 2px 8px rgba(0, 0, 0, 0.3)',
+    'font-size': '14px',
+}
+
+
 # the panel's checklist/close-button ids only exist once its children are
 # rendered by a callback, not in this initial static layout
 app = Dash(__name__, suppress_callback_exceptions=True)
@@ -231,9 +259,21 @@ app.layout = html.Div([
         config={'scrollZoom': True},
         style={'height': '100vh', 'width': '100vw'},
     ),
+    html.Div(
+        dcc.Checklist(
+            id='filter-controls',
+            options=[
+                {'label': 'スタンプ（未獲得）', 'value': 'stamp_missing'},
+                {'label': '缶バッジ（未獲得）', 'value': 'badge_missing'},
+            ],
+            value=[],
+        ),
+        style=FILTER_PANEL_STYLE,
+    ),
     html.Div(id="panel-backdrop", n_clicks=0, style=_backdrop_style(False)),
     html.Div(id="detail-panel", style=_panel_style(False)),
     dcc.Store(id="selected-point"),
+    dcc.Store(id="visible-indices", data=list(range(len(t_clean)))),
 ], style={'margin': 0, 'padding': 0})
 
 
@@ -277,17 +317,21 @@ def _build_info_children(num):
     Output("selected-point", "data"),
     Output("panel-backdrop", "style"),
     Input("graph-basic-2", "clickData"),
+    State("visible-indices", "data"),
 )
-def display_click(clickData):
+def display_click(clickData, visible_indices):
     if clickData is None:
         return no_update, no_update, no_update, no_update
 
     pt = clickData["points"][0]
-    num = pt["pointNumber"]
 
     # don't pin the panel for taps on the current location marker
     if [pt['lat'], pt['lon']] == g.latlng:
         return no_update, no_update, no_update, no_update
+
+    # pointNumber is a position within the currently-filtered trace, not the
+    # original row index - map it back via the indices that were drawn
+    num = visible_indices[pt["pointNumber"]]
 
     children = [
         html.Button('✕', id='close-panel', n_clicks=0, style={
@@ -311,29 +355,54 @@ def display_click(clickData):
 
 @app.callback(
     Output("graph-basic-2", "figure"),
+    Output("visible-indices", "data", allow_duplicate=True),
     Input("collection-checklist", "value"),
     State("selected-point", "data"),
+    State("filter-controls", "value"),
     prevent_initial_call=True,
 )
-def toggle_collection(value, num):
+def toggle_collection(value, num, active_filters):
     if num is None:
-        return no_update
+        return no_update, no_update
 
     new_state = {'stamp': 'stamp' in value, 'badge': 'badge' in value}
     # the checklist also fires this callback once when it's first mounted
     # (seeded with the point's existing state), despite prevent_initial_call -
     # skip the no-op so opening a panel doesn't push a pointless update
     if new_state == collection_state[num]:
-        return no_update
+        return no_update, no_update
     collection_state[num] = new_state
 
-    # patch only the marker color array in place, rather than sending back
-    # the whole figure - a full figure replacement re-sends the mapbox
-    # center/zoom baked in at server startup, which was resetting the
-    # user's current pan/zoom on every toggle regardless of uirevision
+    # rebuild the currently-drawn points from scratch (not just recolor) -
+    # toggling a flag can make this point start/stop matching an active
+    # filter, so it may need to appear or disappear, not just change color.
+    # patch only these arrays in place, rather than sending back the whole
+    # figure - a full figure replacement re-sends the mapbox center/zoom
+    # baked in at server startup, which was resetting the user's current
+    # pan/zoom on every toggle regardless of uirevision
+    indices = _visible_indices(active_filters)
     patch = Patch()
-    patch['data'][0]['marker']['color'] = _marker_style()
-    return patch
+    patch['data'][0]['lat'] = [ALL_LATS[i] for i in indices]
+    patch['data'][0]['lon'] = [ALL_LONS[i] for i in indices]
+    patch['data'][0]['text'] = [str(i + 1) for i in indices]
+    patch['data'][0]['marker']['color'] = [_color_for(i) for i in indices]
+    return patch, indices
+
+
+@app.callback(
+    Output("graph-basic-2", "figure", allow_duplicate=True),
+    Output("visible-indices", "data", allow_duplicate=True),
+    Input("filter-controls", "value"),
+    prevent_initial_call=True,
+)
+def apply_filters(active_filters):
+    indices = _visible_indices(active_filters)
+    patch = Patch()
+    patch['data'][0]['lat'] = [ALL_LATS[i] for i in indices]
+    patch['data'][0]['lon'] = [ALL_LONS[i] for i in indices]
+    patch['data'][0]['text'] = [str(i + 1) for i in indices]
+    patch['data'][0]['marker']['color'] = [_color_for(i) for i in indices]
+    return patch, indices
 
 
 @app.callback(
