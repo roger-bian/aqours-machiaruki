@@ -10,13 +10,32 @@ import { useUserLocation } from './hooks/useUserLocation';
 import { matchesFilters } from './data/markerColors';
 import type { FilterKey } from './data/types';
 
+const ACTIVE_FILTERS_STORAGE_KEY = 'activeFilters';
+const FILTER_KEYS: FilterKey[] = ['stamp_missing', 'badge_missing'];
+
+function loadStoredFilters(): Set<FilterKey> {
+  try {
+    const raw = localStorage.getItem(ACTIVE_FILTERS_STORAGE_KEY);
+    if (!raw) return new Set();
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((key): key is FilterKey => FILTER_KEYS.includes(key)));
+  } catch {
+    return new Set();
+  }
+}
+
 function App() {
   const { locations, setLocations, loading, error, refreshOne } = useLocations();
   const { toggle: toggleCollected, isPending } = useToggleCollected(setLocations);
   const userPosition = useUserLocation();
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(new Set());
+  const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(loadStoredFilters);
+
+  useEffect(() => {
+    localStorage.setItem(ACTIVE_FILTERS_STORAGE_KEY, JSON.stringify([...activeFilters]));
+  }, [activeFilters]);
 
   useEffect(() => {
     if (selectedId != null) refreshOne(selectedId);
