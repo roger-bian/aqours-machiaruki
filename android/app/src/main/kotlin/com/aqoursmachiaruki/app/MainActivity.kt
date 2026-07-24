@@ -18,6 +18,7 @@ private val ICON_ALIASES = listOf(
 
 class MainActivity : Activity() {
     private lateinit var twaLauncher: TwaLauncher
+    private var browserWasLaunched = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,14 +30,31 @@ class MainActivity : Activity() {
             CustomTabsCallback(),
             null,
         ) {
-            // Runs only once the launch intent has actually gone out, so rotating
-            // (and finishing) here can't race the disabled-alias task-teardown issue.
-            rotateIcon()
+            browserWasLaunched = true
+        }
+    }
+
+    // The TWA is pushed onto this same task, on top of this activity, so we must NOT
+    // finish() right after launching (that races with the browser activity still
+    // attaching to the task and either aborts the launch or crashes on cleanup).
+    // Instead, stay alive underneath and only finish once the user backs out of the
+    // browser and control actually returns here — mirroring Google's own reference
+    // TWA LauncherActivity, which uses this exact onRestart pattern.
+    override fun onRestart() {
+        super.onRestart()
+        if (browserWasLaunched) {
             finish()
         }
     }
 
+    // Disabling the alias that launched the CURRENT task closes that entire task
+    // (both this activity and the TWA/Custom Tab riding on top of it) immediately,
+    // regardless of DONT_KILL_APP — confirmed via logcat: right after disabling the
+    // origin alias, WindowManager issues a CLOSE transition for the whole task,
+    // killing Chrome's page-render process before the site ever displays. So the
+    // rotation must only happen once the task is already being torn down for real.
     override fun onDestroy() {
+        rotateIcon()
         twaLauncher.destroy()
         super.onDestroy()
     }
