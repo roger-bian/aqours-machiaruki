@@ -1,0 +1,133 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher_chika"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.Translucent">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Translucent" />
+
+        <!--
+          One activity-alias per character icon. Exactly one is enabled at a
+          time; MainActivity randomizes which alias is enabled on every
+          launch (see MainActivity.kt), so the icon shown on the home screen
+          changes each time the app is used. Chika is the default for a
+          fresh install.
+        -->
+        <activity-alias
+            android:name=".IconChika"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_chika"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconYou"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_you"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconRiko"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_riko"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconKanan"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_kanan"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconDaiya"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_daiya"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconYoshiko"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_yoshiko"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconHanamaru"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_hanamaru"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconMari"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_mari"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".IconRuby"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_ruby"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+    </application>
+
+</manifest>
