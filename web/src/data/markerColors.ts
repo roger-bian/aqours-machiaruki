@@ -1,8 +1,8 @@
 import type { Location, FilterKey } from './types';
 
-export const DEFAULT_MARKER_COLOR = '#636efa';
+export const DEFAULT_MARKER_COLOR = '#6b7280';
 export const ONE_COLLECTED_COLOR = '#f39c12';
-export const BOTH_COLLECTED_COLOR = '#2ecc71';
+export const BOTH_COLLECTED_COLOR = '#00a0e9';
 export const MARKER_SIZE = 36;
 
 export function colorFor(loc: Pick<Location, 'stamp' | 'badge'>): string {
