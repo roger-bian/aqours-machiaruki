@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "com.aqoursmachiaruki.app",
+      "sha256_cert_fingerprints": [
+        "F7:D0:2A:6E:08:31:0B:94:D7:FE:96:74:77:EC:CA:D0:49:5E:7A:60:7A:DB:4A:DA:85:75:8A:6E:F0:C6:50:CA"
+      ]
+    }
+  }
+]
