@@ -164,12 +164,48 @@ layer expects; the local one uses plain `GRANT`s instead).
 - **`data/supabaseRest.ts`**: shared `API_BASE`/`authHeaders()` used by
   both `useLocations` (GET) and `useToggleCollected` (PATCH). Swapping
   Supabase projects is a two-env-var change here, not a code change.
+  `authHeaders()` is `async` — it sources the `Authorization` header from a
+  live Auth0 ID token via a registered getter (`registerIdTokenGetter()`),
+  not a static key; `apikey` still sends the static publishable key
+  unchanged (Supabase's gateway needs it for project routing regardless of
+  auth method).
+- **`auth/AuthGate.tsx`**: wraps the whole app (see `main.tsx`, inside
+  `Auth0Provider`). Nothing renders behind it until Auth0 login succeeds
+  (`loginWithRedirect` with `connection: 'google-oauth2'`, skipping Auth0's
+  account-chooser) — an Auth0 Action server-side denies anyone but the
+  owner's email, so this is a real gate, not just a client-side one. Once
+  authenticated, its `useEffect` calls `registerIdTokenGetter()` so
+  `supabaseRest.ts` can fetch a fresh ID token per request.
+- **`panel/RefreshDataButton.tsx`**: the "データ更新" button — calls
+  `useAuth0().getIdTokenClaims()` directly (it's inside the same
+  `Auth0Provider` tree) and `POST`s the raw ID token to
+  `VITE_PIPELINE_API_BASE`'s `/pipeline/run`, which verifies it
+  independently (see "Auth" below). That request returns almost
+  immediately (`'started'` or `'already_running'` — the backend runs the
+  actual pipeline afterward, not inline), so the button's own loading
+  state only covers that quick round-trip; a `Toast` then reports
+  `'started'` vs `'already_running'`, and a `pollUntilDone()` loop (`GET
+  /pipeline/status` every ~3s) picks up the eventual result regardless of
+  which one it was — on success it shows a toast and
+  `window.location.reload()`s once that toast dismisses, on error it just
+  shows the error toast. A mount-time effect does the same single status
+  check (no `POST`) so a run left in progress by some earlier, since-
+  abandoned session (e.g. this button was clicked, then the page was
+  reloaded) is still surfaced and followed through to completion without
+  requiring another click.
+- **`panel/Toast.tsx`**: a small fixed-position, `user-select: none`
+  bottom-center notification (blue/green/red by variant) used only by
+  `RefreshDataButton` right now — not a global toast system.
 - **`data/markerColors.ts`**: `colorFor()` (blue/orange/green by how many
   of stamp+badge are collected) and `matchesFilters()` (OR semantics
   across the two "not yet collected" filters) both operate directly on a
   `Location`'s `stamp`/`badge` fields — no separate state-map/lookup layer.
 - **`hooks/useLocations.ts`**: fetches once on mount; exposes `setLocations`
-  so `useToggleCollected` can apply optimistic updates in place.
+  so `useToggleCollected` can apply optimistic updates in place. Also
+  exposes `refreshOne(id)` — a targeted `?id=eq.<id>&select=id,stamp,badge`
+  fetch (not a full re-fetch of all ~136 rows) that `App.tsx` calls in a
+  `useEffect` whenever a marker's detail panel opens, so a `stamp`/`badge`
+  toggled on a different device is picked up without a manual reload.
 - **`hooks/useToggleCollected.ts`**: toggling a checkbox optimistically
   updates local state, `PATCH`es Supabase directly, and rolls back on
   failure. Also tracks in-flight `(id, field)` pairs (guarded via a `ref`,
