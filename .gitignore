@@ -156,11 +156,6 @@ cython_debug/
 # downloaded PostgREST binary (fetched fresh per-machine, not committed)
 postgrest/postgrest
 
-# pipeline's local KML/image cache (downloaded/cached by app/kml.py and
-# app/images.py - re-fetched on each POST /pipeline/run, not committed)
-pipeline/data/machiaruki.kml
-pipeline/data/images/
-
 # credentials (Supabase connection string, secret key)
 pipeline/.env
 

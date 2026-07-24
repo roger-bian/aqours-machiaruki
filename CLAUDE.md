@@ -42,6 +42,13 @@ layer expects; the local one uses plain `GRANT`s instead).
   Credentials (Supabase project URL, publishable key) live in
   `web/.env.local` (gitignored).
 - No test suite or linter beyond `tsc`/`oxlint` defaults in `web/`.
+- `pipeline/Dockerfile` + root `render.yaml` deploy `pipeline/` to Render
+  (Docker runtime, free plan). The container is fully stateless — no
+  volume/persistent disk is configured or needed, since the pipeline keeps
+  everything that must survive a restart in Supabase (see "Data pipeline"
+  below) rather than on local disk. `render.yaml`'s `envVars` are declared
+  with `sync: false` (values entered once in the Render dashboard when the
+  Blueprint is first connected, not stored in git).
 - `nb/nb.ipynb` is a scratch notebook of early data-exploration work. Not
   run as part of anything and may be out of sync — reference only.
 
@@ -88,23 +95,47 @@ layer expects; the local one uses plain `GRANT`s instead).
    Missing fields degrade to empty string/`'なし'` rather than raising. If
    you touch this parsing, re-check against entries missing labels, not
    just the common case.
-3. **`app/images.py`**: `cache_images()` downloads each photo (hashed by
-   URL into a local `pipeline/data/images/` cache to dedupe across runs —
-   Google's `mymaps.usercontent.google.com` CDN blocks/rate-limits repeat
-   fetches), uploads it to the Supabase Storage bucket (`app/storage.py`,
-   `x-upsert: true`), and returns that bucket's public URL. The frontend
-   reads the `img_url` column (Supabase Storage), not the local cache.
-4. **`app/db.py`**: `upsert_locations()` upserts on the natural key
+3. **`app/images.py`**: `cache_images()` hashes each photo URL (SHA1) and
+   uses that digest as the object's key in the Supabase Storage bucket
+   (`app/storage.py`) — `object_exists()` is checked first, and the actual
+   photo is only fetched from Google's `mymaps.usercontent.google.com` CDN
+   (which blocks/rate-limits repeat fetches) on a miss, then uploaded via
+   `upload_object()` (`x-upsert: true`). Storage itself *is* the dedupe
+   cache — deliberately no local disk involved, since the container has no
+   persistent disk on Render's free plan and a restart/redeploy would
+   otherwise silently lose it. The frontend reads the `img_url` column
+   (the Storage public URL), not any local path.
+4. **`app/validation.py`**: `validate_structure()` checks a freshly
+   downloaded KML against the *previous* successful run's KML (the
+   "accepted structure" baseline) before any DB write is attempted —
+   required columns present, every placemark has a name and Point
+   geometry, placemark count hasn't collapsed past `MIN_COUNT_RATIO` of
+   baseline, and address/image extraction hasn't broken past
+   `MAX_EMPTY_ADDRESS_RATIO`/`MAX_EMPTY_IMG_RATIO`. Raises
+   `PipelineValidationError` on deviation; `app/main.py` reports this as
+   HTTP 422 and discards the download without touching the DB or the
+   baseline. On the very first run ever (no baseline yet), the relative
+   count-drop check is skipped but every other check still applies.
+5. **`app/db.py`**: `upsert_locations()` upserts on the natural key
    `(name, lat, lon)`. Deliberately never touches the `stamp`/`badge`
    columns — not in the `INSERT` column list (new rows get the column
    defaults, both `false`), not in the `ON CONFLICT DO UPDATE SET` clause
    (existing rows keep whatever collection state they have). The pipeline
    owns everything about a location except collection state, which only
    the frontend writes — don't add `stamp`/`badge` to this query.
-5. **`app/main.py`**: `POST /pipeline/run` ties the above together and
-   returns `{processed, inserted, updated}`. Not called automatically —
-   trigger it manually (or via cron/webhook) whenever the source KML
-   changes.
+6. **`app/main.py`**: `POST /pipeline/run` ties the above together and
+   returns `{processed, inserted, updated}` (or a 422/502 error if
+   validation/processing failed, in which case nothing is written). Not
+   called automatically — trigger it manually (or via cron/webhook)
+   whenever the source KML changes. The baseline KML used by
+   `validate_structure()` is itself stored in Supabase Storage
+   (`BASELINE_KML_KEY = '_pipeline/baseline.kml'`, same bucket as photos)
+   rather than on local disk, and is only overwritten with the new
+   download *after* validation and the DB upsert both succeed — a rejected
+   or failed run leaves the baseline untouched. Local temp files
+   (`tempfile`) are used only as scratch space to let `geotable.load()`
+   parse KML bytes fetched from Storage/Google; nothing on local disk
+   needs to persist across requests.
 
 ## Frontend (`web/src`)
 

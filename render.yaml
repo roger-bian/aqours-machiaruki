@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: aqours-machiaruki-pipeline
+    runtime: docker
+    dockerfilePath: ./pipeline/Dockerfile
+    dockerContext: ./pipeline
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PIPELINE_DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SECRET_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        sync: false
