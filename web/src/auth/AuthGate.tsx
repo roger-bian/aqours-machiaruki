@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { registerIdTokenGetter } from '../data/supabaseRest';
@@ -19,14 +18,20 @@ const GATE_STYLE: React.CSSProperties = {
 export function AuthGate({ children }: { children: ReactNode }) {
   const { isLoading, isAuthenticated, loginWithRedirect, getIdTokenClaims, error } = useAuth0();
 
-  useEffect(() => {
-    if (!isAuthenticated) return;
+  // Registered synchronously during render, not in a useEffect: React fires
+  // child effects before parent effects, so a useEffect here would race
+  // useLocations' own mount-time fetch - its very first request could go out
+  // with no token registered yet, sent unauthenticated, and get a 401 once
+  // RLS requires the `authenticated` role. Dev's <StrictMode> double-invokes
+  // effects and happened to mask this (the second pass runs after
+  // registration completes) - production builds don't get that safety net.
+  if (isAuthenticated) {
     registerIdTokenGetter(async () => {
       const claims = await getIdTokenClaims();
       if (!claims?.__raw) throw new Error('Missing Auth0 ID token');
       return claims.__raw;
     });
-  }, [isAuthenticated, getIdTokenClaims]);
+  }
 
   if (isLoading) {
     return (
