@@ -23,20 +23,24 @@ CREATE TABLE IF NOT EXISTS locations (
 
 ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Public read access" ON locations
+-- Personal single-user app: Supabase is configured as a Third-Party Auth
+-- provider trusting an Auth0 tenant directly (Dashboard > Authentication >
+-- Third-Party Auth), and an Auth0 Action denies login to anyone but the
+-- owner's Google account - so `authenticated` here means "is the owner",
+-- not "is any signed-up user". `anon` (unauthenticated) gets nothing.
+CREATE POLICY "Authenticated read access" ON locations
     FOR SELECT
+    TO authenticated
     USING (true);
 
--- no user accounts in this app (single personal user) - permissive by
--- design, scoped down at the column-privilege level instead (see GRANT
--- below), not via row ownership
-CREATE POLICY "Public update collection state" ON locations
+CREATE POLICY "Authenticated update collection state" ON locations
     FOR UPDATE
+    TO authenticated
     USING (true)
     WITH CHECK (true);
 
-GRANT USAGE ON SCHEMA public TO anon;
-GRANT SELECT ON locations TO anon;
+GRANT USAGE ON SCHEMA public TO authenticated;
+GRANT SELECT ON locations TO authenticated;
 -- column-scoped: the frontend can flip stamp/badge but can't rename a
 -- location, move its coordinates, or change its photo
-GRANT UPDATE (stamp, badge) ON locations TO anon;
+GRANT UPDATE (stamp, badge) ON locations TO authenticated;

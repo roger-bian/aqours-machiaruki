@@ -18,6 +18,12 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         sync: false
+      - key: AUTH0_DOMAIN
+        value: roger-bian.jp.auth0.com
+      - key: AUTH0_CLIENT_ID
+        value: iBUELrvVWYMU8Q47tDHw6zIHCnW56foI
+      - key: ALLOWED_EMAILS
+        sync: false
 
   - type: web
     name: aqours-machiaruki-web
@@ -32,3 +38,9 @@ services:
         sync: false
       - key: VITE_SUPABASE_PUBLISHABLE_KEY
         sync: false
+      - key: VITE_AUTH0_DOMAIN
+        value: roger-bian.jp.auth0.com
+      - key: VITE_AUTH0_CLIENT_ID
+        value: iBUELrvVWYMU8Q47tDHw6zIHCnW56foI
+      - key: VITE_PIPELINE_API_BASE
+        value: https://aqours-machiaruki-pipeline.onrender.com

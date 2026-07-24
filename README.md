@@ -46,19 +46,29 @@ PIPELINE_DATABASE_URL=postgresql://postgres.<project-ref>:<password>@<pooler-hos
 SUPABASE_URL=https://<project-ref>.supabase.co
 SUPABASE_SECRET_KEY=<secret key, Settings > API Keys>
 SUPABASE_BUCKET=<your bucket name>
+AUTH0_DOMAIN=<your-tenant>.<region>.auth0.com
+AUTH0_CLIENT_ID=<Auth0 application's Client ID>
 ```
 
 Use the **connection pooler** string (Settings → Database → Connection
 pooling), not the direct connection — the direct one is IPv6-only and often
 fails to resolve from local networks.
 
+`AUTH0_DOMAIN`/`AUTH0_CLIENT_ID` come from the Auth0 Single Page
+Application you create for `web/` below — the pipeline verifies the same
+ID token the frontend uses, independently, for its own `/pipeline/run`
+endpoint (see `CLAUDE.md`'s "Auth" section for the full picture).
+
 Run the schema once against your Supabase project (`psql "$PIPELINE_DATABASE_URL" -f db/supabase_schema.sql`),
-then start the service and trigger a pipeline run:
+**and** register Auth0 as a Third-Party Auth provider (Supabase Dashboard →
+Authentication → Third-Party Auth), then start the service and trigger a
+pipeline run (needs a real Auth0 ID token — easiest to copy one out of the
+frontend's network tab after logging in):
 
 ```bash
 cd pipeline
 uvicorn app.main:app --port 8000
-curl -X POST http://localhost:8000/pipeline/run
+curl -X POST http://localhost:8000/pipeline/run -H "Authorization: Bearer <id-token>"
 ```
 
 ### `web/`
@@ -73,7 +83,16 @@ Create `web/.env.local` (gitignored):
 ```
 VITE_API_BASE=https://<project-ref>.supabase.co/rest/v1
 VITE_SUPABASE_PUBLISHABLE_KEY=<publishable key, Settings > API Keys>
+VITE_AUTH0_DOMAIN=<your-tenant>.<region>.auth0.com
+VITE_AUTH0_CLIENT_ID=<Auth0 application's Client ID>
+VITE_PIPELINE_API_BASE=http://localhost:8000
 ```
+
+Auth0 setup: create a Single Page Application in your Auth0 tenant, enable
+the Google social connection, add an `onExecutePostLogin` Action that
+denies login to anyone but your own email and sets the `role: authenticated`
+custom claim on the ID token, and add `http://localhost:5173` to Allowed
+Callback URLs / Logout URLs / Web Origins for local dev.
 
 ```bash
 npm run dev

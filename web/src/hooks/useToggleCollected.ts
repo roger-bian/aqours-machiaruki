@@ -31,11 +31,14 @@ export function useToggleCollected(setLocations: Dispatch<SetStateAction<Locatio
       const next = !current;
       setLocations((prev) => prev.map((loc) => (loc.id === id ? { ...loc, [field]: next } : loc)));
 
-      fetch(`${API_BASE}/locations?id=eq.${id}`, {
-        method: 'PATCH',
-        headers: authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' }),
-        body: JSON.stringify({ [field]: next }),
-      })
+      authHeaders({ 'Content-Type': 'application/json', Prefer: 'return=minimal' })
+        .then((headers) =>
+          fetch(`${API_BASE}/locations?id=eq.${id}`, {
+            method: 'PATCH',
+            headers,
+            body: JSON.stringify({ [field]: next }),
+          }),
+        )
         .then((res) => {
           if (!res.ok) throw new Error(`PATCH /locations failed: ${res.status}`);
         })

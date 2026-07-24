@@ -20,6 +20,13 @@ separate pieces:
    `POST /pipeline/run` is called.
 3. **Supabase** (Postgres + Storage) — the `locations` table (schema in
    `db/supabase_schema.sql`) and the photo bucket.
+4. **Auth0** — personal app restricted to a small set of designated emails
+   (via Google login only). Auth0 authenticates; Supabase trusts that Auth0
+   tenant directly as a **Third-Party Auth** provider (Dashboard >
+   Authentication > Third-Party Auth) so RLS evaluates the real Auth0 ID
+   token, not a static key. `pipeline/` independently verifies the same ID
+   token against Auth0's JWKS for its own `/pipeline/run` endpoint. See
+   "Auth (Auth0 + Supabase)" below for the full wiring.
 
 `db/` and `postgrest/` also contain a **local** Postgres + standalone
 PostgREST setup (no Docker/Supabase CLI needed) for developing against a
@@ -34,13 +41,16 @@ layer expects; the local one uses plain `GRANT`s instead).
   GDAL requires the native library first (`sudo apt-get install libgdal-dev
   gdal-bin`); the pinned `GDAL==` version must match `gdal-config --version`.
   Run: `cd pipeline && uvicorn app.main:app --port 8000`. Trigger the
-  pipeline: `curl -X POST http://localhost:8000/pipeline/run`. Credentials
-  (Supabase pooler connection string, secret key, bucket name) live in
-  `pipeline/.env` (gitignored) — see README.md for the exact keys.
+  pipeline: needs a valid Auth0 ID token now (see "Auth" below) —
+  `curl -X POST http://localhost:8000/pipeline/run -H "Authorization: Bearer <token>"`.
+  Credentials (Supabase pooler connection string, secret key, bucket name,
+  plus `AUTH0_DOMAIN`/`AUTH0_CLIENT_ID`) live in `pipeline/.env` (gitignored)
+  — see README.md for the exact keys.
 - **`web/`**: `cd web && npm install && npm run dev` (Vite dev server,
   default port 5173+). `npm run build` for a static production build.
-  Credentials (Supabase project URL, publishable key) live in
-  `web/.env.local` (gitignored).
+  Credentials (Supabase project URL, publishable key, plus
+  `VITE_AUTH0_DOMAIN`/`VITE_AUTH0_CLIENT_ID`/`VITE_PIPELINE_API_BASE`) live
+  in `web/.env.local` (gitignored).
 - No test suite or linter beyond `tsc`/`oxlint` defaults in `web/`.
 - `pipeline/Dockerfile` + root `render.yaml` deploy `pipeline/` to Render
   (Docker runtime, free plan). The container is fully stateless — no
@@ -174,22 +184,60 @@ layer expects; the local one uses plain `GRANT`s instead).
   filter panel is positioned top-right (`FilterPanel.tsx`) specifically to
   avoid overlapping it.
 
+## Auth (Auth0 + Supabase)
+
+Personal app restricted to a small set of designated emails — the goal is
+that only those emails can ever read/write the data, enforced at the data
+layer, not just hidden behind a client-side gate. The actual addresses are
+kept out of this repo: `pipeline/app/auth.py` reads them from the
+`ALLOWED_EMAILS` env var (comma-separated, `pipeline/.env` locally /
+`sync: false` in `render.yaml`), and the Auth0 Action (dashboard-only, not
+in this repo) enforces the same allowlist independently.
+
+- **Auth0** authenticates via Google login (`google-oauth2` connection). An
+  Auth0 Action (`onExecutePostLogin`, Auth0 dashboard, not in this repo)
+  denies login outright to anyone outside the designated emails, and stamps
+  `role: 'authenticated'` onto the **ID token** specifically (Auth0
+  silently strips unnamespaced custom claims from *access* tokens — this
+  is why the ID token, not the access token, is what gets passed around
+  everywhere in this app).
+- **Supabase** is configured as a Third-Party Auth provider trusting that
+  Auth0 tenant directly (Dashboard > Authentication > Third-Party Auth,
+  external to this repo) — PostgREST verifies the Auth0 ID token against
+  Auth0's JWKS itself and assigns the `authenticated` Postgres role from
+  its `role` claim. `db/supabase_schema.sql`'s RLS policies and grants are
+  `TO authenticated` only — `anon` (unauthenticated) gets nothing at all,
+  a deliberate change from the old fully-permissive `anon` model.
+- **`pipeline/app/auth.py`**: independently verifies the same Auth0 ID
+  token for `POST /pipeline/run` (`PyJWKClient` against Auth0's JWKS,
+  checking signature/issuer/audience/email) — this is separate from and
+  unrelated to Supabase's Third-Party Auth trust relationship; the two
+  systems just happen to trust the same Auth0 tenant. Deliberately **not**
+  a static shared secret: the frontend's "データ更新" button calls this
+  endpoint directly from the browser, and anything baked into the Vite
+  bundle (`VITE_*` vars) is effectively public once the page loads.
+- `web/`'s `AUTH0_DOMAIN`/`AUTH0_CLIENT_ID`-equivalent env vars
+  (`VITE_AUTH0_DOMAIN`/`VITE_AUTH0_CLIENT_ID`) and `pipeline/`'s
+  (`AUTH0_DOMAIN`/`AUTH0_CLIENT_ID`) are **not secrets** — Auth0
+  domain/client ID are meant to be public in an SPA bundle — so they're
+  plain `value:` entries in `render.yaml`, not `sync: false`.
+- `useRefreshTokens` + `cacheLocation: 'localstorage'` (in `main.tsx`'s
+  `Auth0Provider`) avoid Auth0's legacy iframe-based silent-auth, which
+  third-party-cookie blocking (Safari/Chrome) increasingly breaks — matters
+  concretely here since the app is used in real walking-around-Numazu
+  phone sessions, not just quick desktop visits.
+- `pipeline/`'s CORS (`app/main.py`) is scoped to the real frontend
+  origin(s), not `allow_origins=['*']` — now that real cross-origin
+  requests carry an `Authorization` header, a wildcard origin isn't
+  appropriate.
+
 ## Supabase-specific notes
 
-- Auth model: no user accounts — `anon`/publishable-key access is
-  permissive, scoped down at the **column** level instead of via row
-  ownership: `GRANT SELECT` on the whole table, but
-  `GRANT UPDATE (stamp, badge)` only. Confirmed via curl: the publishable
-  key can `PATCH` `stamp`/`badge` but gets `permission denied for table
-  locations` trying to change `name` or anything else — don't widen this
-  grant without a reason.
-- RLS is enabled on Supabase (`db/supabase_schema.sql`) with permissive
-  `USING (true)` policies for both `SELECT` and `UPDATE` — the column
-  grant is the actual security boundary here, not RLS. The local Postgres
-  setup (`db/schema.sql`) skips RLS entirely (plain `GRANT`s), since
-  standalone PostgREST doesn't need it the way Supabase's dashboard linter
-  expects it.
 - API key naming: Supabase's dashboard calls the `anon` key the
   **publishable key**, and the `service_role` key the **secret key**.
   `pipeline/` uses the secret key (Storage uploads); `web/` uses the
-  publishable key (reads + the scoped `stamp`/`badge` updates).
+  publishable key only for the `apikey` header now (routing, not identity —
+  see "Auth" above for what actually gates access).
+- The local Postgres setup (`db/schema.sql`) still skips RLS entirely
+  (plain `GRANT`s to `web_anon`) and is unaffected by any of the above —
+  it's dev-only scaffolding, never deployed, no Auth0 involved.
