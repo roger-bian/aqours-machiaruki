@@ -85,6 +85,22 @@ layer expects; the local one uses plain `GRANT`s instead).
   synchronously before React's controlled-component re-render catches up,
   so read state back after a short `wait`, not in the same script.
 
+## Git commit conventions
+
+- When committing, group the working tree's changes by logical category
+  (e.g., one feature/fix per commit) and commit each category separately
+  rather than as one large commit.
+- Never roll back or discard the current repo state (`git reset`/
+  `checkout`/`stash`, etc.) just to reconstruct cleaner, more perfectly
+  separated category commits — work forward from whatever is currently in
+  the working tree, don't rewrite it to fit the categorization.
+- If a file's current uncommitted state belongs to a new category but
+  overlaps with a change that would otherwise have been split into an
+  earlier category, don't try to divide that file's diff between the two
+  commits — the current state and its category take precedence, and the
+  earlier category's changes to that file get rolled into this commit
+  instead of kept separate.
+
 ## Data pipeline (`pipeline/`)
 
 1. **`app/kml.py`**: `fetch_kml()` downloads the KML export fresh on every
