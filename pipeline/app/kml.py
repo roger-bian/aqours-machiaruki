@@ -13,13 +13,14 @@ import geotable
 import requests
 
 KML_URL = 'https://www.google.com/maps/d/u/0/kml?forcekml=1&mid=1hQhJDhsE87Iu9BJOln-EnveGbow&lid=Cs8qfjzbvoQ'
+TIMEOUT = 30
 
 
 def fetch_kml(path, url=KML_URL):
     # re-downloads fresh every call - this is triggered explicitly to
     # refresh data, not cached across runs
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    response = requests.get(url)
+    response = requests.get(url, timeout=TIMEOUT)
     response.raise_for_status()
     with open(path, 'wb') as f:
         f.write(response.content)
