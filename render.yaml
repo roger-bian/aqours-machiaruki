@@ -15,3 +15,17 @@ services:
         sync: false
       - key: SUPABASE_BUCKET
         sync: false
+
+  - type: web
+    name: aqours-machiaruki-web
+    runtime: static
+    rootDir: ./web
+    buildCommand: npm ci && npm run build
+    staticPublishPath: ./dist
+    envVars:
+      - key: NODE_VERSION
+        value: 24.18.0
+      - key: VITE_API_BASE
+        sync: false
+      - key: VITE_SUPABASE_PUBLISHABLE_KEY
+        sync: false
