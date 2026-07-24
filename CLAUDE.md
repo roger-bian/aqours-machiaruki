@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## What this is
 
 A Numazu (沼津) "machiaruki" stamp-rally map: Love Live! Sunshine!! character
-stamp locations pulled from a public Google My Maps KML export. Three
+stamp locations pulled from a public Google My Maps KML export. Five
 separate pieces:
 
 1. **`web/`** — a static React + Vite + Leaflet frontend. Renders numbered,
@@ -18,9 +18,13 @@ separate pieces:
    (download KML → clean/parse → download photos → upsert into Postgres,
    uploading photos to Supabase Storage). Runs only when
    `POST /pipeline/run` is called.
-3. **Supabase** (Postgres + Storage) — the `locations` table (schema in
+3. **`android/`** — a personal-sideload-only Android wrapper (not
+   published to Google Play) that opens the deployed `web/` site
+   fullscreen via a Trusted Web Activity. See "Android app (`android/`)"
+   below.
+4. **Supabase** (Postgres + Storage) — the `locations` table (schema in
    `db/supabase_schema.sql`) and the photo bucket.
-4. **Auth0** — personal app restricted to a small set of designated emails
+5. **Auth0** — personal app restricted to a small set of designated emails
    (via Google login only). Auth0 authenticates; Supabase trusts that Auth0
    tenant directly as a **Third-Party Auth** provider (Dashboard >
    Authentication > Third-Party Auth) so RLS evaluates the real Auth0 ID
@@ -51,14 +55,30 @@ layer expects; the local one uses plain `GRANT`s instead).
   Credentials (Supabase project URL, publishable key, plus
   `VITE_AUTH0_DOMAIN`/`VITE_AUTH0_CLIENT_ID`/`VITE_PIPELINE_API_BASE`) live
   in `web/.env.local` (gitignored).
+- **`android/`**: needs a JDK 17 and the Android SDK command-line tools
+  (`platform-tools`, `platforms;android-34`, `build-tools;34.0.0`), pointed
+  at via `android/local.properties`'s `sdk.dir` (gitignored,
+  machine-specific). Build: `cd android && ./gradlew assembleDebug`.
+  Sideload onto a phone with USB debugging enabled:
+  `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Signing
+  keystore credentials live in `android/keystore.properties` (gitignored)
+  — see README.md for how to generate one and wire up
+  `web/public/.well-known/assetlinks.json` to match.
 - No test suite or linter beyond `tsc`/`oxlint` defaults in `web/`.
-- `pipeline/Dockerfile` + root `render.yaml` deploy `pipeline/` to Render
-  (Docker runtime, free plan). The container is fully stateless — no
+- Root `render.yaml` defines **two** Render services, both auto-deploying
+  on push to the connected branch: `aqours-machiaruki-pipeline`
+  (`pipeline/Dockerfile`, Docker runtime, free plan, `buildFilter` scoped
+  to `pipeline/**` so it only rebuilds when that path changes) and
+  `aqours-machiaruki-web` (`runtime: static`, `rootDir: ./web`, `npm ci &&
+  npm run build`, no `buildFilter` — redeploys on every push regardless of
+  which paths changed). The pipeline container is fully stateless — no
   volume/persistent disk is configured or needed, since the pipeline keeps
   everything that must survive a restart in Supabase (see "Data pipeline"
-  below) rather than on local disk. `render.yaml`'s `envVars` are declared
-  with `sync: false` (values entered once in the Render dashboard when the
-  Blueprint is first connected, not stored in git).
+  below) rather than on local disk. Both services' `envVars` are declared
+  with `sync: false` for secrets (values entered once in the Render
+  dashboard when the Blueprint is first connected, not stored in git) or
+  a plain `value:` for the non-secret Auth0 domain/client ID (see "Auth"
+  below for why those are safe to commit).
 - `nb/nb.ipynb` is a scratch notebook of early data-exploration work. Not
   run as part of anything and may be out of sync — reference only.
 
@@ -244,6 +264,65 @@ layer expects; the local one uses plain `GRANT`s instead).
 - Leaflet's built-in zoom control defaults to the top-left corner — the
   filter panel is positioned top-right (`FilterPanel.tsx`) specifically to
   avoid overlapping it.
+
+## Android app (`android/`)
+
+Personal-sideload-only wrapper (`com.aqoursmachiaruki.app`, not published
+to Google Play) whose only job is to open the deployed `web/` site
+fullscreen. Standalone Gradle/Kotlin project, unrelated to `web/`'s or
+`pipeline/`'s toolchains.
+
+- **Why a Trusted Web Activity, not a `WebView`**: the site gates
+  everything behind Auth0 → Google login. Google blocks OAuth sign-in
+  inside plain embedded `WebView`s, so a raw `WebView` wrapper gets stuck
+  at the login screen. A Trusted Web Activity (TWA) hosts real Chrome
+  under the hood — same as the browser — just without Chrome's own
+  toolbar, so Google OAuth works normally.
+- **`MainActivity.kt`** launches the TWA via `TwaLauncher`
+  (`com.google.androidbrowserhelper:androidbrowserhelper`), which pushes
+  the browser activity onto the **same task** as `MainActivity` (not a
+  separate one). Two consequences that are easy to get wrong (both
+  confirmed via `adb logcat` during development, not just theorized):
+  - Must **not** `finish()` right after launching — that races with the
+    browser activity still attaching to the task and aborts the
+    load/crashes on cleanup. `MainActivity` stays alive underneath and
+    only finishes in `onRestart()` (i.e. once the user backs out of the
+    browser and control actually returns here), mirroring Google's own
+    reference `androidbrowserhelper` `LauncherActivity`.
+  - Icon rotation (see below) must only happen in `onDestroy()`, never
+    right after launching. Disabling the `activity-alias` that launched
+    the *current* task closes that entire task immediately — both
+    `MainActivity` and the TWA/Custom Tab riding on top of it — regardless
+    of the `DONT_KILL_APP` flag (which only protects the process, not the
+    task/activity stack). Rotating any earlier silently kills the site
+    mid-load.
+- **Icon rotation**: nine `activity-alias` entries in
+  `AndroidManifest.xml` (one per Aqours member,
+  `res/mipmap-xxxhdpi/ic_launcher_<name>.png`), all targeting the same
+  `MainActivity`. Exactly one is enabled at a time; `rotateIcon()`
+  (called from `onDestroy()`) picks a different one at random via
+  `PackageManager.setComponentEnabledSetting`. The visible home-screen
+  icon only catches up the *next* time that particular launcher redraws
+  it — some launchers cache it and lag behind the actual enabled state by
+  a few opens; that's a launcher-side quirk, not a bug in the rotation
+  logic.
+- **Fullscreen (no Custom Tab toolbar) requires domain verification**:
+  `web/public/.well-known/assetlinks.json` declares the app's package
+  name and its signing certificate's SHA-256 fingerprint. Chrome checks
+  this at runtime and falls back to a normal Custom Tab automatically if
+  verification fails or is stale — a mismatch degrades gracefully rather
+  than breaking the app.
+- Signed with a **dedicated keystore** (`android/keystore/release.jks`,
+  gitignored) rather than the machine-local auto-generated debug
+  keystore, specifically so the fingerprint in `assetlinks.json` stays
+  valid across machines/reinstalls. Credentials live in
+  `android/keystore.properties` (gitignored, same pattern as
+  `pipeline/.env`/`web/.env.local`); `app/build.gradle.kts` reads it and
+  signs **both** debug and release build types with it.
+- `androidx.browser` is pinned to `1.8.0` and `androidbrowserhelper` to
+  `2.5.0` deliberately — newer releases of either pull in transitive
+  dependencies requiring `compileSdk 36`+/AGP 8.9+, which this project
+  doesn't use.
 
 ## Auth (Auth0 + Supabase)
 

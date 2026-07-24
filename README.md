@@ -6,7 +6,7 @@ an interactive Leaflet map with a tap-to-open detail panel (photo, member,
 address, hours, holidays) and a personal collection tracker (スタンプ/缶バッジ
 checkboxes per location).
 
-Three separate pieces:
+Four separate pieces:
 
 - **`web/`** — React + Vite + Leaflet static frontend. Reads location data
   straight from Supabase's REST API (PostgREST); no KML parsing or data
@@ -15,6 +15,9 @@ Three separate pieces:
   (download the KML → clean/parse it → download each location's photo →
   upsert into Postgres, uploading photos to Supabase Storage). Runs only
   when its endpoint is triggered, not automatically.
+- **`android/`** — a personal-sideload-only Android wrapper that opens the
+  deployed `web/` site fullscreen via a Trusted Web Activity. Not
+  published to Google Play.
 - **Supabase** (Postgres + Storage) — the `locations` table and the image
   bucket. See `db/supabase_schema.sql` for the schema.
 
@@ -48,6 +51,7 @@ SUPABASE_SECRET_KEY=<secret key, Settings > API Keys>
 SUPABASE_BUCKET=<your bucket name>
 AUTH0_DOMAIN=<your-tenant>.<region>.auth0.com
 AUTH0_CLIENT_ID=<Auth0 application's Client ID>
+ALLOWED_EMAILS=<comma-separated emails allowed to trigger the pipeline>
 ```
 
 Use the **connection pooler** string (Settings → Database → Connection
@@ -58,6 +62,9 @@ fails to resolve from local networks.
 Application you create for `web/` below — the pipeline verifies the same
 ID token the frontend uses, independently, for its own `/pipeline/run`
 endpoint (see `CLAUDE.md`'s "Auth" section for the full picture).
+`ALLOWED_EMAILS` is required (no default — `pipeline/app/auth.py` raises
+on startup if it's unset) and must match the same allowlist enforced
+independently by the Auth0 Action that gates login itself.
 
 Run the schema once against your Supabase project (`psql "$PIPELINE_DATABASE_URL" -f db/supabase_schema.sql`),
 **and** register Auth0 as a Third-Party Auth provider (Supabase Dashboard →
@@ -96,6 +103,56 @@ Callback URLs / Logout URLs / Web Origins for local dev.
 
 ```bash
 npm run dev
+```
+
+### `android/`
+
+Personal-sideload-only Android wrapper (see `CLAUDE.md` for why it uses a
+Trusted Web Activity instead of a `WebView`). Needs a JDK 17 and the
+Android SDK command-line tools (`platform-tools`, `platforms;android-34`,
+`build-tools;34.0.0`).
+
+Generate a dedicated signing keystore once — don't reuse the
+auto-generated debug keystore, since the fingerprint needs to stay stable
+across rebuilds:
+
+```bash
+keytool -genkeypair -v -keystore android/keystore/release.jks \
+  -alias aqoursmachiaruki -keyalg RSA -keysize 2048 -validity 10000
+```
+
+Create `android/keystore.properties` (gitignored):
+
+```
+storeFile=keystore/release.jks
+storePassword=<password you set above>
+keyAlias=aqoursmachiaruki
+keyPassword=<same password>
+```
+
+Create `android/local.properties` (gitignored) pointing at your Android
+SDK:
+
+```
+sdk.dir=/path/to/android-sdk
+```
+
+Get the keystore's SHA-256 fingerprint and put it in
+`web/public/.well-known/assetlinks.json`'s `sha256_cert_fingerprints`,
+replacing the placeholder there — this is what lets Chrome verify the app
+owns the domain and render it fullscreen instead of with a Custom Tab
+toolbar:
+
+```bash
+keytool -list -v -keystore android/keystore/release.jks -alias aqoursmachiaruki
+```
+
+Build and sideload onto a phone with USB debugging enabled:
+
+```bash
+cd android
+./gradlew assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ## Notes
