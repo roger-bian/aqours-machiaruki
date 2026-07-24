@@ -133,16 +133,25 @@ layer expects; the local one uses plain `GRANT`s instead).
    (existing rows keep whatever collection state they have). The pipeline
    owns everything about a location except collection state, which only
    the frontend writes — don't add `stamp`/`badge` to this query.
-6. **`app/main.py`**: `POST /pipeline/run` ties the above together and
-   returns `{processed, inserted, updated}` (or a 422/502 error if
-   validation/processing failed, in which case nothing is written). Not
-   called automatically — trigger it manually (or via cron/webhook)
-   whenever the source KML changes. The baseline KML used by
-   `validate_structure()` is itself stored in Supabase Storage
-   (`BASELINE_KML_KEY = '_pipeline/baseline.kml'`, same bucket as photos)
-   rather than on local disk, and is only overwritten with the new
-   download *after* validation and the DB upsert both succeed — a rejected
-   or failed run leaves the baseline untouched. Local temp files
+6. **`app/main.py`** / **`app/pipeline_state.py`**: `POST /pipeline/run`
+   requires a valid Auth0 ID token (`app/auth.py`'s `verify_auth0_token`
+   dependency — see "Auth" below), then does a fast, lock-protected
+   check-and-kickoff and returns almost immediately —
+   `{'status': 'started'}` or `{'status': 'already_running'}` — rather
+   than blocking for the full run. The actual work
+   (`_execute_pipeline_run`, same KML fetch/validate/cache/upsert logic as
+   before) runs afterward via FastAPI's `BackgroundTasks`.
+   `pipeline_state` holds the shared in-memory `running`/`last_result`/
+   `last_error` state behind a `threading.Lock` (atomic check-and-set
+   across FastAPI's thread-pool-executed handlers) — deliberately not
+   persisted anywhere, so a process restart mid-run self-heals back to
+   "not running" rather than getting stuck. `GET /pipeline/status`
+   exposes that state for polling. A rejected or failed run still leaves
+   the DB/baseline untouched exactly as before — only *when* the pipeline
+   itself runs and reports its result changed, not the validation/rollback
+   semantics. The baseline KML used by `validate_structure()` is itself
+   stored in Supabase Storage (`BASELINE_KML_KEY = '_pipeline/baseline.kml'`,
+   same bucket as photos) rather than on local disk. Local temp files
    (`tempfile`) are used only as scratch space to let `geotable.load()`
    parse KML bytes fetched from Storage/Google; nothing on local disk
    needs to persist across requests.
