@@ -161,5 +161,3 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
   `(name, lat, lon)` and deliberately never touches the `stamp`/`badge`
   columns — those are collection state, written only by the frontend
   (`PATCH` straight to Supabase's REST API), never by the pipeline.
-- `nb/nb.ipynb` is a scratch notebook of early data-exploration work. Not
-  run as part of anything and may drift out of sync — reference only.

@@ -79,31 +79,18 @@ layer expects; the local one uses plain `GRANT`s instead).
   dashboard when the Blueprint is first connected, not stored in git) or
   a plain `value:` for the non-secret Auth0 domain/client ID (see "Auth"
   below for why those are safe to commit).
-- `nb/nb.ipynb` is a scratch notebook of early data-exploration work. Not
-  run as part of anything and may be out of sync — reference only.
 
 ## Development workflow
 
-- Start `pipeline/` (`uvicorn app.main:app --port 8000`) and `web/`
-  (`npm run dev`) in the background and open the Vite dev URL in the
-  browser via the Claude in Chrome extension. Leave both running for the
-  rest of the session.
+- Only start the `pipeline/` (`uvicorn app.main:app --port 8000`) or
+  `web/` (`npm run dev`) dev servers on demand, when actually doing local
+  testing — don't start them proactively or leave them running by
+  default.
 - After any pipeline change, you generally don't need to re-trigger
   `POST /pipeline/run` unless you changed KML-parsing/upsert logic itself —
   the frontend reads from Supabase directly, not from the pipeline process.
-- After any frontend change, verify via the Claude in Chrome extension
-  (click markers, toggle checkboxes, check the console/network tabs) —
-  Vite's HMR means most changes apply without a manual reload, but changes
-  to `.env.local` require restarting the dev server.
-- **Automated clicks on the Leaflet map are flaky.** A simulated
-  `left_click` on a marker sometimes registers as a no-op (Leaflet's hit
-  target for a `divIcon` marker is small); retry once or twice before
-  assuming a real bug. For deterministic testing of state/logic (not the
-  actual click gesture), driving a `<input type="checkbox">` via
-  `element.click()` in `javascript_tool` is more reliable than simulated
-  mouse coordinates — but note native checkbox DOM state can flip
-  synchronously before React's controlled-component re-render catches up,
-  so read state back after a short `wait`, not in the same script.
+- Frontend changes are verified by the user manually unless otherwise
+  stated.
 
 ## Git commit conventions
 
