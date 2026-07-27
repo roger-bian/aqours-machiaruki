@@ -3,14 +3,17 @@ import type { Location } from '../data/types';
 import type { UserPosition } from '../hooks/useUserLocation';
 import { colorFor } from '../data/markerColors';
 import { markerIcon, userMarkerIcon } from './markerIcon';
+import { LocateButton } from './LocateButton';
 
 type Props = {
   locations: Location[];
   onSelect: (id: number) => void;
   userPosition: UserPosition;
+  onLocate: () => Promise<UserPosition>;
+  locating: boolean;
 };
 
-export function MapView({ locations, onSelect, userPosition }: Props) {
+export function MapView({ locations, onSelect, userPosition, onLocate, locating }: Props) {
   return (
     <MapContainer
       center={[35.0938, 138.8867]}
@@ -33,6 +36,7 @@ export function MapView({ locations, onSelect, userPosition }: Props) {
       {userPosition && (
         <Marker position={[userPosition.lat, userPosition.lon]} icon={userMarkerIcon} />
       )}
+      <LocateButton onLocate={onLocate} locating={locating} />
     </MapContainer>
   );
 }

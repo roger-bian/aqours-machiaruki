@@ -28,7 +28,7 @@ function loadStoredFilters(): Set<FilterKey> {
 function App() {
   const { locations, setLocations, loading, error, refreshOne } = useLocations();
   const { toggle: toggleCollected, isPending } = useToggleCollected(setLocations);
-  const userPosition = useUserLocation();
+  const { position: userPosition, locate, locating } = useUserLocation();
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(loadStoredFilters);
@@ -65,7 +65,13 @@ function App() {
 
   return (
     <>
-      <MapView locations={visibleLocations} onSelect={setSelectedId} userPosition={userPosition} />
+      <MapView
+        locations={visibleLocations}
+        onSelect={setSelectedId}
+        userPosition={userPosition}
+        onLocate={locate}
+        locating={locating}
+      />
       <FilterPanel activeFilters={activeFilters} onToggle={onToggleFilter} />
       <RefreshDataButton />
       {selectedLocation && (
