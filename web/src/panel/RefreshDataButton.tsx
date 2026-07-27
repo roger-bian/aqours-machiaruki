@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { Toast } from './Toast';
 import type { ToastVariant } from './Toast';
+import { getFreshIdToken } from '../auth/freshIdToken';
 
 const PIPELINE_BASE = import.meta.env.VITE_PIPELINE_API_BASE;
 const POLL_INTERVAL_MS = 3000;
@@ -37,7 +38,7 @@ type Status = 'idle' | 'checking';
 // (via the mount effect below) neither - some earlier, now-abandoned
 // session's run is still going when this component first mounts.
 export function RefreshDataButton() {
-  const { getIdTokenClaims } = useAuth0();
+  const { getAccessTokenSilently, getIdTokenClaims, loginWithRedirect } = useAuth0();
   const [status, setStatus] = useState<Status>('idle');
   const [toast, setToast] = useState<{ variant: ToastVariant; message: string } | null>(null);
   const pollTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,9 +61,8 @@ export function RefreshDataButton() {
   }
 
   async function authHeader() {
-    const claims = await getIdTokenClaims();
-    if (!claims?.__raw) throw new Error('Missing Auth0 ID token');
-    return { Authorization: `Bearer ${claims.__raw}` };
+    const token = await getFreshIdToken({ getAccessTokenSilently, getIdTokenClaims, loginWithRedirect });
+    return { Authorization: `Bearer ${token}` };
   }
 
   async function fetchStatus() {

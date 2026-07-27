@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { registerIdTokenGetter } from '../data/supabaseRest';
+import { getFreshIdToken } from './freshIdToken';
 
 const GATE_STYLE: React.CSSProperties = {
   height: '100%',
@@ -16,7 +17,8 @@ const GATE_STYLE: React.CSSProperties = {
 // Auth provider - the ID token fetched here is what RLS evaluates, not a
 // static key. Nothing behind this gate renders until login succeeds.
 export function AuthGate({ children }: { children: ReactNode }) {
-  const { isLoading, isAuthenticated, loginWithRedirect, getIdTokenClaims, error } = useAuth0();
+  const { isLoading, isAuthenticated, loginWithRedirect, getAccessTokenSilently, getIdTokenClaims, error } =
+    useAuth0();
 
   // Registered synchronously during render, not in a useEffect: React fires
   // child effects before parent effects, so a useEffect here would race
@@ -25,12 +27,15 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // RLS requires the `authenticated` role. Dev's <StrictMode> double-invokes
   // effects and happened to mask this (the second pass runs after
   // registration completes) - production builds don't get that safety net.
+  //
+  // getFreshIdToken (not a plain getIdTokenClaims() read) matters here: after
+  // >1 day away, isAuthenticated above is often true from a stale cached user
+  // even though the cached ID token has long since expired (Auth0 SPA-JS's
+  // mount-time checkSession() only refreshes if a 1-day cookie is still
+  // present - see auth0-spa-js constants.ts DEFAULT_SESSION_CHECK_EXPIRY_DAYS).
+  // getFreshIdToken forces a real refresh-token-backed refresh instead.
   if (isAuthenticated) {
-    registerIdTokenGetter(async () => {
-      const claims = await getIdTokenClaims();
-      if (!claims?.__raw) throw new Error('Missing Auth0 ID token');
-      return claims.__raw;
-    });
+    registerIdTokenGetter(() => getFreshIdToken({ getAccessTokenSilently, getIdTokenClaims, loginWithRedirect }));
   }
 
   if (isLoading) {
