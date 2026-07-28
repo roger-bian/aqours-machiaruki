@@ -392,6 +392,11 @@ ritual.
   hand-fix is as much a bug as a regression). Also pins that every entry
   satisfies the frontend's `HoursJson` shape, and allowlists the 5 entries with
   a legitimate source-text hours gap so a *new* gap fails.
+- **`test_db.py` asserts on `UPSERT_SQL` as a string**, because the one
+  irreversible failure here is `stamp`/`badge` appearing in that query — a
+  データ更新 would wipe collection state the source cannot regenerate. Found by
+  checking which deliberate regressions the suite *fails* to catch; adding
+  `stamp` to the column list passed everything before that file existed.
 - Not covered by choice: `app/auth.py`'s JWT verification (needs an RSA
   keypair + JWKS stub to test PyJWT doing its job), React components,
   `app/db.py` against a real Postgres, and `android/`.
