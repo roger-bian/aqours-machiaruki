@@ -1,5 +1,5 @@
 import * as holidayJp from '@holiday-jp/holiday_jp';
-import type { DayKey, HoursJson, OpenStatus } from './types';
+import type { DayKey, HoursJson, Interval, OpenStatus } from './types';
 
 /** How long before closing a location reads as "closing soon". */
 export const CLOSING_SOON_MINUTES = 120;
@@ -65,13 +65,34 @@ function isClosedOn(h: HoursJson, parts: JstParts, key: DayKey): boolean {
   );
 }
 
-function statusWithin(intervals: [number, number][], mins: number): OpenStatus | null {
+/** End of whichever interval contains `mins`, or null if none does. Shared so
+ *  that openStatusFor and closingTimeFor cannot disagree about what "currently
+ *  open" means - they each had their own copy of this loop, and drifted. */
+function endOfIntervalAt(intervals: Interval[], mins: number): number | null {
   for (const [start, end] of intervals) {
-    if (mins >= start && mins < end) {
-      return end - mins <= CLOSING_SOON_MINUTES ? 'closing_soon' : 'open';
-    }
+    if (mins >= start && mins < end) return end;
   }
   return null;
+}
+
+function statusWithin(intervals: Interval[], mins: number): OpenStatus | null {
+  const end = endOfIntervalAt(intervals, mins);
+  if (end === null) return null;
+  return end - mins <= CLOSING_SOON_MINUTES ? 'closing_soon' : 'open';
+}
+
+/** Minutes-from-midnight to `HH:MM`, wrapping a past-midnight end (1560 is
+ *  02:00, not 26:00). */
+function formatMinutes(total: number): string {
+  const mins = total % 1440;
+  const hh = String(Math.floor(mins / 60)).padStart(2, '0');
+  return `${hh}:${String(mins % 60).padStart(2, '0')}`;
+}
+
+/** Intervals from `key` that run past midnight, i.e. the ones that belong to
+ *  the previous day and are still running now. */
+function overnightIntervals(h: HoursJson, key: DayKey): Interval[] {
+  return (h.weekly?.[key] ?? []).filter(([, end]) => end > 1440);
 }
 
 export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
@@ -93,8 +114,9 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
   const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   const yesterdayKey = scheduleKey(yesterday);
   if (!isClosedOn(h, yesterday, yesterdayKey)) {
-    const overnight = (h.weekly[yesterdayKey] ?? []).filter(([, end]) => end > 1440);
-    const status = statusWithin(overnight, today.minutes + 1440);
+    const status = statusWithin(
+      overnightIntervals(h, yesterdayKey), today.minutes + 1440,
+    );
     if (status) return status;
   }
 
@@ -102,17 +124,29 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
 }
 
 /** Next closing time as `HH:MM` in JST, or null when not currently open.
- *  Used by the detail panel badge ("まもなく閉店 (14:00)"). */
+ *  Used by the detail panel badge ("まもなく閉店 (14:00)").
+ *
+ *  Mirrors openStatusFor's day resolution, including the look-back for a shift
+ *  that started yesterday - without it, a bar open until 02:00 shows
+ *  "まもなく閉店" with no time next to it at 01:00. */
 export function closingTimeFor(h: HoursJson | null, now: Date): string | null {
   if (!h || !h.weekly || h.always_open || h.permanently_closed) return null;
+
   const today = jstParts(now);
-  const key = scheduleKey(today);
-  if (isClosedOn(h, today, key)) return null;
-  for (const [start, end] of h.weekly[key] ?? []) {
-    if (today.minutes >= start && today.minutes < end) {
-      const e = end % 1440;
-      return `${String(Math.floor(e / 60)).padStart(2, '0')}:${String(e % 60).padStart(2, '0')}`;
-    }
+  const todayKey = scheduleKey(today);
+  if (!isClosedOn(h, today, todayKey)) {
+    const end = endOfIntervalAt(h.weekly[todayKey] ?? [], today.minutes);
+    if (end !== null) return formatMinutes(end);
   }
+
+  const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
+  const yesterdayKey = scheduleKey(yesterday);
+  if (!isClosedOn(h, yesterday, yesterdayKey)) {
+    const end = endOfIntervalAt(
+      overnightIntervals(h, yesterdayKey), today.minutes + 1440,
+    );
+    if (end !== null) return formatMinutes(end);
+  }
+
   return null;
 }

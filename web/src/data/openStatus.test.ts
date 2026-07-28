@@ -224,6 +224,47 @@ describe('closingTimeFor', () => {
       jst('2026-07-28T08:30'))).toBe('09:05')
   })
 
+  it('looks back at a shift that started yesterday', () => {
+    // openStatusFor says closing_soon here, so the badge renders まもなく閉店;
+    // without the same look-back this returned null and the badge showed no time
+    const overnight = hours({ weekly: weekly({ mon: [[660, 1560]] }) })
+    const at0100 = jst('2026-07-28T01:00')
+    expect(openStatusFor(overnight, at0100)).toBe('closing_soon')
+    expect(closingTimeFor(overnight, at0100)).toBe('02:00')
+  })
+
+  it('does not look back into a day the location was closed', () => {
+    const overnight = hours({
+      weekly: weekly({ mon: [[660, 1560]] }),
+      closed_dates: ['07-27'],
+    })
+    expect(closingTimeFor(overnight, jst('2026-07-28T01:00'))).toBeNull()
+  })
+
+  it('agrees with openStatusFor about whether it is open at all', () => {
+    // the two used to keep their own copy of the interval loop and drifted; any
+    // status other than closed/permanently_closed/unknown must have a time
+    const cases: HoursJson[] = [
+      hours(),
+      hours({ weekly: everyDay([660, 1560]) }),
+      hours({ weekly: weekly({ mon: [[660, 1560]] }) }),
+      hours({ weekly: everyDay([690, 840], [1020, 1260]) }),
+    ]
+    const times = ['00:30', '01:00', '09:00', '12:00', '15:00', '19:30', '23:30']
+    for (const h of cases) {
+      for (const time of times) {
+        const at = jst(`2026-07-28T${time}`)
+        const status = openStatusFor(h, at)
+        const closing = closingTimeFor(h, at)
+        if (status === 'open' || status === 'closing_soon') {
+          expect(closing, `${time} ${status}`).not.toBeNull()
+        } else {
+          expect(closing, `${time} ${status}`).toBeNull()
+        }
+      }
+    }
+  })
+
   it('returns null when there is no closing time to show', () => {
     const at = jst('2026-07-28T12:00')
     expect(closingTimeFor(null, at)).toBeNull()
