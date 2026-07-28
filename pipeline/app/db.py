@@ -9,9 +9,12 @@ DATABASE_URL = os.environ.get(
 )
 
 UPSERT_SQL = """
-    INSERT INTO locations (name, lat, lon, member, address, hours, holidays, hours_json, img_url, updated_at)
-    VALUES (%(name)s, %(lat)s, %(lon)s, %(member)s, %(address)s, %(hours)s, %(holidays)s, %(hours_json)s, %(img_url)s, now())
-    ON CONFLICT (name, lat, lon) DO UPDATE SET
+    INSERT INTO locations (id, name, lat, lon, member, address, hours, holidays, hours_json, img_url, updated_at)
+    VALUES (%(id)s, %(name)s, %(lat)s, %(lon)s, %(member)s, %(address)s, %(hours)s, %(holidays)s, %(hours_json)s, %(img_url)s, now())
+    ON CONFLICT (id) DO UPDATE SET
+        name = EXCLUDED.name,
+        lat = EXCLUDED.lat,
+        lon = EXCLUDED.lon,
         member = EXCLUDED.member,
         address = EXCLUDED.address,
         hours = EXCLUDED.hours,
@@ -24,26 +27,33 @@ UPSERT_SQL = """
 
 
 def upsert_locations(records):
-    """Upsert records keyed on the (name, lat, lon) natural key.
+    """Upsert records keyed on `id`, the placemark's 1-based position in the
+    KML - which is the stamp number rendered on the marker, so it is data, not
+    a surrogate key. Returns (inserted_count, updated_count).
 
-    Returns (inserted_count, updated_count). Row `id`s stay stable across
-    re-runs for existing (name, lat, lon) combinations, which matters
-    because the frontend keys collection state (`stamp`/`badge`) by `id`.
-    Deliberately never touches `stamp`/`badge` in the UPDATE SET clause and
-    never includes them in the INSERT column list - existing rows keep
-    whatever collection state they have, new rows get the column defaults
-    (both false), per the frontend/pipeline division of ownership: the
-    pipeline owns everything except collection state, which only the
-    frontend ever writes.
+    The id comes from the caller's list order, never off the record, so
+    `records` must arrive in KML order and be the complete set. Supplying it
+    explicitly also keeps the id sequence out of it: ON CONFLICT DO UPDATE
+    evaluates column defaults before detecting the conflict, so a nextval()
+    default burns a value on every row it merely updates.
+
+    `name`/`lat`/`lon` are in DO UPDATE SET - the row at position N has to
+    follow the KML if its text changes. `stamp`/`badge` never are, and are not
+    in the INSERT column list either: collection state is written only by the
+    frontend, and a refresh must leave it exactly as the user left it.
     """
     inserted = 0
     updated = 0
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
-            for record in records:
+            for position, record in enumerate(records, start=1):
                 # Json() adapts the dict for the jsonb column; callers pass a
                 # plain dict and never have to think about serialization
-                cur.execute(UPSERT_SQL, {**record, 'hours_json': Json(record['hours_json'])})
+                cur.execute(UPSERT_SQL, {
+                    **record,
+                    'id': position,
+                    'hours_json': Json(record['hours_json']),
+                })
                 (was_inserted,) = cur.fetchone()
                 if was_inserted:
                     inserted += 1
