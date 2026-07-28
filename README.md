@@ -223,9 +223,11 @@ text, since it fetches the live KML. `make test` is the change gate.
 
 ## Notes
 
-- `pipeline`'s upsert (`pipeline/app/db.py`) is keyed on the natural key
-  `(name, lat, lon)` and deliberately never touches the `stamp`/`badge`
-  columns — those are collection state, written only by the frontend
-  (`PATCH` straight to Supabase's REST API), never by the pipeline.
+- `pipeline`'s upsert (`pipeline/app/db.py`) is keyed on `id`, which is the
+  placemark's 1-based position in the KML — that position is the stamp number
+  shown on the marker, so it's data, not a surrogate key. It deliberately
+  never touches the `stamp`/`badge` columns — those are collection state,
+  written only by the frontend (`PATCH` straight to Supabase's REST API),
+  never by the pipeline.
 - `PIPELINE_DATABASE_URL` normally points at the live Supabase, so a
   locally-run `pipeline/` writes to production — there's no staging DB.

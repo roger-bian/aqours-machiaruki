@@ -71,8 +71,8 @@ def test_accepts_a_count_exactly_at_the_ratio():
 
 @pytest.mark.parametrize('name', ['', '   '])
 def test_rejects_an_empty_name(name):
-    """`name` is part of the upsert's natural key, so a blank one would create a
-    junk row rather than update an existing location."""
+    """A blank name would take a stamp number and render as an unlabelled,
+    unidentifiable marker, so reject the download instead of writing it."""
     with pytest.raises(PipelineValidationError, match='empty Name'):
         validate_structure(frame([placemark(name=name)]), 1, fields(1))
 

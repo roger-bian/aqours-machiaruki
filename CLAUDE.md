@@ -151,16 +151,41 @@ PostgREST expects; local uses plain `GRANT`s instead).
    Japanese `営業時間`/`定休日` into the structured `hours_json` column.
    See "Business hours" below — it's the most involved parsing in the
    repo and has its own section.
-6. **`app/db.py`**: `upsert_locations()` upserts on natural key
-   `(name, lat, lon)`. Never touches `stamp`/`badge` — not in the
+6. **`app/db.py`**: `upsert_locations()` upserts on **`id`, which is the
+   placemark's 1-based position in the KML** — that position *is* the stamp
+   number the map renders (`MapView.tsx` labels each marker `loc.id`), so
+   `id` is domain data, not a surrogate key. Derived from the caller's list
+   order via `enumerate(records, start=1)`, never read off the record, so
+   `records` must arrive in KML order and be the complete set —
+   `_build_records()` builds it straight from `placemarks.iterrows()`, which
+   preserves document order. Never touches `stamp`/`badge` — not in the
    `INSERT` columns (new rows get defaults, both `false`), not in
    `ON CONFLICT DO UPDATE SET` (existing rows keep their state). Pipeline
    owns everything except collection state, which only the frontend
-   writes — don't add `stamp`/`badge` to this query. `hours_json` is
-   passed through `psycopg2.extras.Json` at execute time so callers hand
-   over a plain dict and never think about serialization. Returns
-   `(inserted, updated)` — `app/main.py` now uses it rather than
-   discarding it.
+   writes — don't add `stamp`/`badge` to this query. `name`/`lat`/`lon`
+   *are* in `DO UPDATE SET`: the row at position N must follow the KML if
+   its text changes. `hours_json` is passed through `psycopg2.extras.Json`
+   at execute time so callers hand over a plain dict and never think about
+   serialization. Returns `(inserted, updated)` — `app/main.py` now uses it
+   rather than discarding it.
+   **Why not the `(name, lat, lon)` natural key it used to key on**:
+   `name` isn't stable. Two placemarks carry a literal newline in their
+   `<name>` (`海鮮丼と魚河岸定食\nかもめ丸`,
+   `ラブライブ！サンシャイン!!\nプレミアムショップ`) and one run emitted them
+   space-joined instead. The natural key missed the existing rows and
+   `INSERT`ed duplicates, which took `nextval()` — by then in the 1400s,
+   because `ON CONFLICT DO UPDATE` evaluates column defaults *before* it
+   detects the conflict, so every run burned one sequence value per
+   placemark even when it only updated. Net effect: phantom markers
+   numbered **1411** and **1478** beside the real 51 and 118, collection
+   state stranded on the originals. Keying on position fixes both halves —
+   a rename updates the row where it already is, and supplying `id`
+   explicitly means the sequence is never touched. The table's old
+   `UNIQUE (name, lat, lon)` was dropped along with it — on an unstable
+   `name` it only stood to wedge future runs. Still uncovered: a
+   location *leaving* the KML leaves a stale trailing row at an id past the
+   new count (nothing deletes rows; `validate_structure` only blocks a
+   count drop past `MIN_COUNT_RATIO`).
 7. **`app/main.py`** / **`app/pipeline_state.py`**: `POST /pipeline/run`
    requires a valid Auth0 ID token (`app/auth.py`'s
    `verify_auth0_token`, see "Auth"), then a fast lock-protected
@@ -222,8 +247,8 @@ written down. Design goal is *honest* status, not maximal coverage:
   (136 locations → 125 keys; 7 hotels share `年中無休`/`なし`) — hence
   `_names` is an array. An absent field still hashes fine, which is what
   makes the 三交イン `manual` entry stable across runs.
-- **A hash miss never creates a new DB row.** The upsert key is
-  `(name, lat, lon)`; the hash only indexes the override file. A miss (new
+- **A hash miss never creates a new DB row.** The upsert key is `id` (the
+  KML position); the hash only indexes the override file. A miss (new
   location, or upstream text edited) just recomputes `hours_json` from the
   rule tier and bumps `unverified`. An edited entry *should* stop matching —
   a hand-written override must not keep overriding changed source data.
@@ -397,6 +422,11 @@ ritual.
   データ更新 would wipe collection state the source cannot regenerate. Found by
   checking which deliberate regressions the suite *fails* to catch; adding
   `stamp` to the column list passed everything before that file existed.
+  It also pins the stamp-number invariant: `ON CONFLICT (id)`, `id` supplied
+  explicitly, `name`/`lat`/`lon` present in `DO UPDATE SET`, ids assigned
+  `1..N` from list order, and — end to end over `fixtures/sample.kml` —
+  position N in the KML becoming id N in the upsert. Reverting `db.py` to the
+  old natural key fails 9 of them.
 - Not covered by choice: `app/auth.py`'s JWT verification (needs an RSA
   keypair + JWKS stub to test PyJWT doing its job), React components,
   `app/db.py` against a real Postgres, and `android/`.
