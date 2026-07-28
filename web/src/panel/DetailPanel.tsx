@@ -1,5 +1,7 @@
-import type { Location } from '../data/types';
+import type { Location, OpenStatus } from '../data/types';
 import { colorForMember } from '../data/memberColors';
+import { RING_COLORS } from '../data/markerColors';
+import { closingTimeFor, openStatusFor } from '../data/openStatus';
 
 const PANEL_STYLE: React.CSSProperties = {
   display: 'block',
@@ -63,8 +65,50 @@ function AddressField({ label, value }: { label: string; value: string }) {
   );
 }
 
+const STATUS_LABELS: Record<OpenStatus, string | null> = {
+  open: '営業中',
+  closing_soon: 'まもなく閉店',
+  closed: '営業時間外',
+  permanently_closed: '閉店しました',
+  unknown: null,
+};
+
+/** The computed status sits directly above the Japanese text it was derived
+ *  from, so a bad parse is visible during ordinary use rather than only when
+ *  someone goes looking for it. */
+function StatusBadge({ location, now }: { location: Location; now: Date }) {
+  const status = openStatusFor(location.hours_json, now);
+  const label = STATUS_LABELS[status];
+  if (!label) return null;
+  const closesAt = status === 'closing_soon' ? closingTimeFor(location.hours_json, now) : null;
+  const notes = location.hours_json?.notes ?? [];
+  return (
+    <div style={{ marginTop: 10 }}>
+      <span
+        style={{
+          display: 'inline-block',
+          padding: '2px 10px',
+          borderRadius: 999,
+          fontSize: 13,
+          fontWeight: 'bold',
+          color: 'white',
+          backgroundColor: RING_COLORS[status] ?? '#6b7280',
+        }}
+      >
+        {label}{closesAt ? ` (${closesAt})` : ''}
+      </span>
+      {notes.map((note, i) => (
+        <div key={i} style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>
+          ⚠️ {note}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 type Props = {
   location: Location;
+  now: Date;
   stampPending: boolean;
   badgePending: boolean;
   onToggleStamp: () => void;
@@ -74,6 +118,7 @@ type Props = {
 
 export function DetailPanel({
   location,
+  now,
   stampPending,
   badgePending,
   onToggleStamp,
@@ -129,9 +174,19 @@ export function DetailPanel({
       {location.member && (
         <p style={{ color: colorForMember(location.member), marginBottom: 0 }}>{location.member}</p>
       )}
-      <h3 style={{ color: 'darkblue', overflowWrap: 'break-word', marginTop: 0 }}>
+      <h3
+        style={{
+          color: 'darkblue',
+          overflowWrap: 'break-word',
+          marginTop: 0,
+          ...(location.hours_json?.permanently_closed
+            ? { color: '#6b7280', textDecoration: 'line-through' }
+            : {}),
+        }}
+      >
         <b>{location.name}</b>
       </h3>
+      <StatusBadge location={location} now={now} />
       <AddressField label="住所" value={location.address} />
       <LabeledField label="営業時間" value={location.hours} />
       <LabeledField label="定休日" value={location.holidays} />

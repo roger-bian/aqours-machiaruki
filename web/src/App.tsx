@@ -11,7 +11,11 @@ import { matchesFilters } from './data/markerColors';
 import type { FilterKey } from './data/types';
 
 const ACTIVE_FILTERS_STORAGE_KEY = 'activeFilters';
-const FILTER_KEYS: FilterKey[] = ['stamp_missing', 'badge_missing'];
+const FILTER_KEYS: FilterKey[] = ['uncollected', 'open_now'];
+
+// how often the open/closed evaluation re-runs; a minute is finer than any
+// closing time in the data and cheap for ~136 pure comparisons
+const CLOCK_TICK_MS = 60_000;
 
 function loadStoredFilters(): Set<FilterKey> {
   try {
@@ -32,6 +36,15 @@ function App() {
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(loadStoredFilters);
+  const [now, setNow] = useState(() => new Date());
+
+  // without this the marker rings and the 営業中のみ filter would both freeze
+  // at page-load time - the memo below and markerIcon's cache are only
+  // invalidated when `now` changes
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), CLOCK_TICK_MS);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(ACTIVE_FILTERS_STORAGE_KEY, JSON.stringify([...activeFilters]));
@@ -42,8 +55,8 @@ function App() {
   }, [selectedId, refreshOne]);
 
   const visibleLocations = useMemo(
-    () => locations.filter((loc) => matchesFilters(loc, activeFilters)),
-    [locations, activeFilters],
+    () => locations.filter((loc) => matchesFilters(loc, activeFilters, now)),
+    [locations, activeFilters, now],
   );
 
   const selectedLocation = useMemo(
@@ -71,6 +84,7 @@ function App() {
         userPosition={userPosition}
         onLocate={locate}
         locating={locating}
+        now={now}
       />
       <FilterPanel activeFilters={activeFilters} onToggle={onToggleFilter} />
       <RefreshDataButton />
@@ -79,6 +93,7 @@ function App() {
           <Backdrop onClose={() => setSelectedId(null)} />
           <DetailPanel
             location={selectedLocation}
+            now={now}
             stampPending={isPending(selectedLocation.id, 'stamp')}
             badgePending={isPending(selectedLocation.id, 'badge')}
             onToggleStamp={() => toggleCollected(selectedLocation.id, 'stamp', selectedLocation.stamp)}

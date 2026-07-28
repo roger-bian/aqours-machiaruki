@@ -18,26 +18,25 @@ type Props = {
   onToggle: (key: FilterKey) => void;
 };
 
+// the two filters stack (AND) - see matchesFilters in data/markerColors.ts
+const FILTERS: { key: FilterKey; label: string }[] = [
+  { key: 'uncollected', label: '未獲得' },
+  { key: 'open_now', label: '営業中のみ' },
+];
+
 export function FilterPanel({ activeFilters, onToggle }: Props) {
   return (
     <div style={FILTER_PANEL_STYLE}>
-      <div style={{ fontWeight: 'bold', marginBottom: 4 }}>未獲得</div>
-      <label style={{ display: 'block' }}>
-        <input
-          type="checkbox"
-          checked={activeFilters.has('stamp_missing')}
-          onChange={() => onToggle('stamp_missing')}
-        />
-        {' '}スタンプ
-      </label>
-      <label style={{ display: 'block' }}>
-        <input
-          type="checkbox"
-          checked={activeFilters.has('badge_missing')}
-          onChange={() => onToggle('badge_missing')}
-        />
-        {' '}缶バッジ
-      </label>
+      {FILTERS.map(({ key, label }) => (
+        <label key={key} style={{ display: 'block' }}>
+          <input
+            type="checkbox"
+            checked={activeFilters.has(key)}
+            onChange={() => onToggle(key)}
+          />
+          {' '}{label}
+        </label>
+      ))}
     </div>
   );
 }
