@@ -4,6 +4,10 @@
 -- an explicit policy rather than a bare GRANT for anything public-readable.
 
 CREATE TABLE IF NOT EXISTS locations (
+    -- NOT an arbitrary surrogate key: `id` is the placemark's 1-based position
+    -- in the KML, which is the stamp number shown on the marker. The pipeline
+    -- always supplies it explicitly (see pipeline/app/db.py), so the SERIAL
+    -- default is a fallback that should never fire.
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     lat DOUBLE PRECISION NOT NULL,
@@ -22,8 +26,7 @@ CREATE TABLE IF NOT EXISTS locations (
     -- the pipeline's upsert once a row exists - see pipeline/app/db.py)
     stamp BOOLEAN NOT NULL DEFAULT false,
     badge BOOLEAN NOT NULL DEFAULT false,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (name, lat, lon)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- migration path for databases created before hours_json existed (the
@@ -31,6 +34,8 @@ CREATE TABLE IF NOT EXISTS locations (
 -- run on the live Supabase project; the existing SELECT grant already covers
 -- the new column, and GRANT UPDATE stays scoped to (stamp, badge).
 ALTER TABLE locations ADD COLUMN IF NOT EXISTS hours_json JSONB;
+
+ALTER TABLE locations DROP CONSTRAINT IF EXISTS locations_name_lat_lon_key;
 
 ALTER TABLE locations ENABLE ROW LEVEL SECURITY;
 

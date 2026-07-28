@@ -4,6 +4,10 @@
 -- RLS policies instead, since RLS is enforced by default there.
 
 CREATE TABLE IF NOT EXISTS locations (
+    -- NOT an arbitrary surrogate key: `id` is the placemark's 1-based position
+    -- in the KML, which is the stamp number shown on the marker. The pipeline
+    -- always supplies it explicitly (see pipeline/app/db.py), so the SERIAL
+    -- default is a fallback that should never fire.
     id SERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     lat DOUBLE PRECISION NOT NULL,
@@ -22,8 +26,7 @@ CREATE TABLE IF NOT EXISTS locations (
     -- the pipeline's upsert once a row exists - see pipeline/app/db.py)
     stamp BOOLEAN NOT NULL DEFAULT false,
     badge BOOLEAN NOT NULL DEFAULT false,
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
-    UNIQUE (name, lat, lon)
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- migration path for databases created before hours_json existed (the
