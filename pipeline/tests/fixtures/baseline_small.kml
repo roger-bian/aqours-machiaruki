@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Twelve real placemarks trimmed from a live Google My Maps KML export (see
+     KML_URL in pipeline/app/kml.py), so the test suite never touches the
+     network. Each one is here for a reason:
+
+       ゲーマーズ沼津店             平日/土日祝 split hours
+       三交イン 沼津駅前           no 営業時間 label at all (the `manual` tier)
+       マルサン書店                 ※閉店により、終了しました。 + 元旦 closure
+       びゅうお                     schedule inside a parenthetical, which the
+                                    rule tier strips (a hand-corrected entry)
+       食堂・ひもの販売　あじや     第二・第四 kanji-numeral nth closure, and
+                                    fullwidth colons in the times
+       マルニ茶業　沼津みなと新鮮館 第2･4 with a halfwidth katakana middle dot
+       セブンイレブン ...           24時間営業
+       沼津グランドホテル           年中無休 as the only stated 営業時間
+       安田屋旅館                   不定休 - irregular, no extractable closures
+       伊豆箱根バス                 昼休み midday closure + per-weekday scopes
+       千本一                       (L.O.) parenthetical, wave-dash ranges
+       沼津市歴史民俗資料館         no メンバー label, and 休館日／ instead of
+                                    定休日／ - an unrecognised label, so its
+                                    text lands inside the 営業時間 slice
+
+     The proportions matter as much as the shapes: app/validation.py rejects a
+     download when more than 10% of rows are missing an address, an image or
+     business hours. Exactly one entry here legitimately has no 営業時間 (1/12,
+     mirroring 1/136 upstream), so a real validate_structure() call over this
+     fixture passes for the same reason production does. Adding fewer than ~10
+     placemarks would trip the ratio and force the tests to fake the validator.
+
+     Only the photo URLs were altered: Google embeds a per-request token that is
+     meaningless offline, so the tag shape is kept and the token stubbed. Every
+     placemark in the live export has an <img>, so the empty-image path is
+     covered by test_description.py/test_images.py instead of by a fixture.
+
+     <Style>/<StyleMap> definitions were dropped; the placemarks' styleUrl refs
+     dangle, which GDAL does not mind and nothing in the pipeline reads. -->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>沼津まちあるきスタンプ　設置店舗 (test fixture)</name>
+    <Placemark>
+      <name>ゲーマーズ沼津店</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE01?fife=s16383" height="200" width="auto" /><br><br>メンバー／津島善子<br>住所／沼津市添地町72青秀ビル1階<br>営業時間／平日 11:00～20:00<br>土日祝 10:0～20:00<br>定休日／なし]]></description>
+      <styleUrl>#icon-seq2-0-0-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE01?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.856807,35.10157,0
+        </coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>

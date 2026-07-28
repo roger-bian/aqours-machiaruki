@@ -1,0 +1,10 @@
+# Test-only dependencies, deliberately kept out of requirements.txt so
+# pipeline/Dockerfile's image doesn't carry them into the Render deploy.
+#
+#   pip install -r pipeline/requirements-dev.txt
+#   make test            (from the repo root)
+#
+# TestClient needs httpx, which uvicorn[standard] already pulls in.
+-r requirements.txt
+
+pytest

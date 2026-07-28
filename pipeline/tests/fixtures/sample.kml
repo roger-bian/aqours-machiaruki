@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Twelve real placemarks trimmed from a live Google My Maps KML export (see
+     KML_URL in pipeline/app/kml.py), so the test suite never touches the
+     network. Each one is here for a reason:
+
+       ゲーマーズ沼津店             平日/土日祝 split hours
+       三交イン 沼津駅前           no 営業時間 label at all (the `manual` tier)
+       マルサン書店                 ※閉店により、終了しました。 + 元旦 closure
+       びゅうお                     schedule inside a parenthetical, which the
+                                    rule tier strips (a hand-corrected entry)
+       食堂・ひもの販売　あじや     第二・第四 kanji-numeral nth closure, and
+                                    fullwidth colons in the times
+       マルニ茶業　沼津みなと新鮮館 第2･4 with a halfwidth katakana middle dot
+       セブンイレブン ...           24時間営業
+       沼津グランドホテル           年中無休 as the only stated 営業時間
+       安田屋旅館                   不定休 - irregular, no extractable closures
+       伊豆箱根バス                 昼休み midday closure + per-weekday scopes
+       千本一                       (L.O.) parenthetical, wave-dash ranges
+       沼津市歴史民俗資料館         no メンバー label, and 休館日／ instead of
+                                    定休日／ - an unrecognised label, so its
+                                    text lands inside the 営業時間 slice
+
+     The proportions matter as much as the shapes: app/validation.py rejects a
+     download when more than 10% of rows are missing an address, an image or
+     business hours. Exactly one entry here legitimately has no 営業時間 (1/12,
+     mirroring 1/136 upstream), so a real validate_structure() call over this
+     fixture passes for the same reason production does. Adding fewer than ~10
+     placemarks would trip the ratio and force the tests to fake the validator.
+
+     Only the photo URLs were altered: Google embeds a per-request token that is
+     meaningless offline, so the tag shape is kept and the token stubbed. Every
+     placemark in the live export has an <img>, so the empty-image path is
+     covered by test_description.py/test_images.py instead of by a fixture.
+
+     <Style>/<StyleMap> definitions were dropped; the placemarks' styleUrl refs
+     dangle, which GDAL does not mind and nothing in the pipeline reads. -->
+<kml xmlns="http://www.opengis.net/kml/2.2">
+  <Document>
+    <name>沼津まちあるきスタンプ　設置店舗 (test fixture)</name>
+    <Placemark>
+      <name>ゲーマーズ沼津店</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE01?fife=s16383" height="200" width="auto" /><br><br>メンバー／津島善子<br>住所／沼津市添地町72青秀ビル1階<br>営業時間／平日 11:00～20:00<br>土日祝 10:0～20:00<br>定休日／なし]]></description>
+      <styleUrl>#icon-seq2-0-0-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE01?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.856807,35.10157,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>三交イン 沼津駅前</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE02?fife=s16383" height="200" width="auto" /><br><br>メンバー／黒澤ルビィ<br>住所／沼津市大手町5丁目3番22号<br>定休日／なし<br>https://www.sanco-inn.co.jp/numazu/]]></description>
+      <styleUrl>#icon-seq2-0-131-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE02?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.858776,35.101028,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>マルサン書店</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE03?fife=s16383" height="200" width="auto" /><br><br>メンバー／国木田花丸<br>住所／沼津市大手町5-3-13<br>営業時間／10:00～19:00<br>定休日／元旦<br> ※閉店により、終了しました。]]></description>
+      <styleUrl>#icon-seq2-0-15-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE03?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8584822,35.1007401,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>びゅうお</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE04?fife=s16383" height="200" width="auto" /><br><br>メンバー／小原鞠莉<br>住所／沼津市本字千本1905-27<br>営業時間／10:00～20:00（木曜日は14:00まで）<br>定休日／なし(施設メンテナンスによる休館あり)<br>※スタンプは北側1階チケット販売所に設置してあります。]]></description>
+      <styleUrl>#icon-seq2-0-23-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE04?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8546613,35.08137,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>食堂・ひもの販売　あじや</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE05?fife=s16383" height="200" width="auto" /><br><br>メンバー／小原鞠莉<br>住所／沼津市千本港町128-1　沼津みなと新鮮館内<br>営業時間／9：00～16：00<br>定休日／第二・第四火曜日]]></description>
+      <styleUrl>#icon-seq2-0-43-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE05?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8574685,35.0837709,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>マルニ茶業　沼津みなと新鮮館</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE06?fife=s16383" height="200" width="auto" /><br><br>メンバー／国木田花丸<br>住所／沼津市千本港町128-1　沼津みなと新鮮館内<br>営業時間／9:00～16:00<br>定休日／第2･4火曜日]]></description>
+      <styleUrl>#icon-seq2-0-58-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE06?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8573607,35.0837387,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>セブンイレブン 伊豆・三津シーパラダイス前店</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE07?fife=s16383" height="200" width="auto" /><br><br>メンバー／桜内梨子<br>住所／沼津市内浦三津46<br>営業時間／24時間営業 <br>定休日／なし]]></description>
+      <styleUrl>#icon-seq2-0-18-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE07?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8974586,35.0219585,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>沼津グランドホテル</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE08?fife=s16383" height="200" width="auto" /><br><br>メンバー／高海千歌<br>住所／沼津市大手町3丁目6-12<br>営業時間／年中無休<br>定休日／なし]]></description>
+      <styleUrl>#icon-seq2-0-54-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE08?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8607258,35.1005866,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>安田屋旅館</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE09?fife=s16383" height="200" width="auto" /><br><br>メンバー／高海千歌<br>住所／沼津市内浦三津19<br>営業時間／12:00～20:00<br>定休日／不定休]]></description>
+      <styleUrl>#icon-seq2-0-1-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE09?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.897573,35.020424,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>伊豆箱根バス</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE10?fife=s16383" height="200" width="auto" /><br><br>メンバー／国木田花丸<br>住所／沼津市大手町1-1-3沼津産業ビル<br>営業時間／9:30～18:00　土曜日9:30～17:00　昼休み13:00～14:00<br>定休日／木・日・祝日<br>https://www.izuhakone.co.jp/bus/index.html]]></description>
+      <styleUrl>#icon-seq2-0-121-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE10?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8609137,35.1022546,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>千本一</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE11?fife=s16383" height="200" width="auto" /><br><br>メンバー／黒澤ルビィ<br>住所／静岡県 沼津市 千本港町 101 沼津みなと新鮮館前(スタンプは縁日コーナーに設置しています)<br>営業時間／平日　11:00〜14:30（L.O.）、土日祝　10:30〜14:30（L.O.）<br>定休日／なし<br>https://www.senbonichi-kamomemaru.jp/]]></description>
+      <styleUrl>#icon-seq2-0-107-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE11?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.8578956,35.0828635,0
+        </coordinates>
+      </Point>
+    </Placemark>
+    <Placemark>
+      <name>沼津市歴史民俗資料館</name>
+      <description><![CDATA[<img src="https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE12?fife=s16383" height="200" width="auto" /><br><br>住所／沼津市下香貫島郷2802-1（沼津御用邸記念公園内）<br>営業時間／9:00～16:00<br>休館日／毎週月曜日（祝日は開館）、毎月最終の平日、祝日の翌日（土曜日・日曜日を除く）、年末年始（12月29日～1月3日）<br>入館料／無料（※ただし御用邸記念公園への入園料大人100円、小・中学生50円が必要です）]]></description>
+      <styleUrl>#icon-seq2-0-128-9C27B0</styleUrl>
+      <ExtendedData>
+        <Data name="gx_media_links">
+          <value>https://mymaps.usercontent.google.com/hostedimage/m/*/FIXTURE12?fife=s16383</value>
+        </Data>
+      </ExtendedData>
+      <Point>
+        <coordinates>
+          138.873187,35.0714,0
+        </coordinates>
+      </Point>
+    </Placemark>
+  </Document>
+</kml>
