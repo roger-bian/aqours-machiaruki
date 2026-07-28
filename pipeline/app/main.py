@@ -62,62 +62,84 @@ def _build_records(placemarks):
     return records
 
 
-def _execute_pipeline_run():
-    """Runs the full KML fetch/validate/cache/upsert cycle. Called via
-    BackgroundTasks - nothing is waiting on a return value here (the
-    triggering request already got its response), so failures update
-    pipeline_state instead of raising an HTTP-flavored exception."""
+def _baseline_count():
+    """Placemark count of the last validated KML, or 0 if there isn't one yet
+    (the first-ever run). geotable.load() only takes a path, so the bytes from
+    Storage have to go through a temp file."""
     baseline_bytes = download_object(BASELINE_KML_KEY)
-    baseline_count = 0
-    if baseline_bytes is not None:
-        with tempfile.NamedTemporaryFile(suffix='.kml') as baseline_tmp:
-            baseline_tmp.write(baseline_bytes)
-            baseline_tmp.flush()
-            baseline_count = len(load_placemarks(baseline_tmp.name))
+    if baseline_bytes is None:
+        return 0
+    with tempfile.NamedTemporaryFile(suffix='.kml') as baseline_tmp:
+        baseline_tmp.write(baseline_bytes)
+        baseline_tmp.flush()
+        return len(load_placemarks(baseline_tmp.name))
+
+
+def _run_pipeline():
+    """The actual fetch/validate/cache/upsert cycle. Returns the row counts for
+    a successful run and raises on anything else - reporting is the caller's
+    job, so that every outcome funnels through one place."""
+    baseline_count = _baseline_count()
 
     with tempfile.NamedTemporaryFile(suffix='.kml') as new_tmp:
-        try:
-            fetch_kml(new_tmp.name)
-            with open(new_tmp.name, 'rb') as f:
-                new_kml_bytes = f.read()
-            placemarks = load_placemarks(new_tmp.name)
-            records = _build_records(placemarks)
-            fields_by_row = [
-                {
-                    'address': r['address'],
-                    'img_url': r['_raw_img_url'],
-                    'hours': r['hours'],
-                }
-                for r in records
-            ]
-            validate_structure(placemarks, baseline_count, fields_by_row)
+        fetch_kml(new_tmp.name)
+        with open(new_tmp.name, 'rb') as f:
+            new_kml_bytes = f.read()
+        placemarks = load_placemarks(new_tmp.name)
+        records = _build_records(placemarks)
+        fields_by_row = [
+            {
+                'address': r['address'],
+                'img_url': r['_raw_img_url'],
+                'hours': r['hours'],
+            }
+            for r in records
+        ]
+        validate_structure(placemarks, baseline_count, fields_by_row)
 
-            img_urls = cache_images(records)
-            for record, img_url in zip(records, img_urls):
-                record['img_url'] = img_url
-                del record['_raw_img_url']
+        img_urls = cache_images(records)
+        for record, img_url in zip(records, img_urls):
+            record['img_url'] = img_url
+            del record['_raw_img_url']
 
-            inserted, updated = upsert_locations(records)
-            # rows the committed overrides didn't cover, so their schedule came
-            # from the rule-based tier and hasn't been eyeballed by a human -
-            # surfaced in the frontend toast so the gap is pulled, not remembered
-            unverified = sum(
-                1 for r in records if r['hours_json'].get('confidence') == 'auto')
-        except PipelineValidationError as e:
-            pipeline_state.finish('error', f'KML structure validation failed: {e}')
-            return
-        except Exception as e:
-            pipeline_state.finish('error', f'pipeline processing error: {e}')
-            return
+        inserted, updated = upsert_locations(records)
+        # rows the committed overrides didn't cover, so their schedule came
+        # from the rule-based tier and hasn't been eyeballed by a human -
+        # surfaced in the frontend toast so the gap is pulled, not remembered
+        unverified = sum(
+            1 for r in records if r['hours_json'].get('confidence') == 'auto')
 
     # only now, having successfully validated and upserted, does the new
     # download replace the accepted-structure baseline for the next run
     upload_object(BASELINE_KML_KEY, new_kml_bytes, KML_CONTENT_TYPE)
-    pipeline_state.finish('success', details={
-        'inserted': inserted,
-        'updated': updated,
-        'unverified': unverified,
-    })
+    return {'inserted': inserted, 'updated': updated, 'unverified': unverified}
+
+
+def _execute_pipeline_run():
+    """Runs the full cycle and reports the outcome. Called via BackgroundTasks -
+    nothing is waiting on a return value here (the triggering request already got
+    its response), so failures update pipeline_state instead of raising an
+    HTTP-flavored exception.
+
+    Every path through this function must call finish() exactly once. An escaping
+    exception would leave pipeline_state's `running` flag set with nothing left to
+    clear it, so every later POST /pipeline/run answers 'already_running' until
+    the process restarts - which is why the whole body is wrapped rather than
+    just the parts that were expected to fail.
+
+    One consequence worth knowing: if the Storage upload that promotes the new
+    baseline fails after the upsert succeeded, this reports an error even though
+    the data is live. The next run then validates against the older baseline,
+    which is the conservative direction, and the operator should hear about it.
+    """
+    try:
+        details = _run_pipeline()
+    except PipelineValidationError as e:
+        pipeline_state.finish('error', f'KML structure validation failed: {e}')
+    except Exception as e:
+        pipeline_state.finish('error', f'pipeline processing error: {e}')
+    else:
+        pipeline_state.finish('success', details=details)
 
 
 @app.post('/pipeline/run')

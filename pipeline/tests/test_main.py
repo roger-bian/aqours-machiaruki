@@ -251,3 +251,63 @@ def test_an_upsert_failure_is_reported_and_leaves_the_baseline_alone(fake_io, mo
     assert 'pipeline processing error' in snapshot['last_error']
     assert 'connection pool exhausted' in snapshot['last_error']
     assert fake_io['uploaded'] == []
+
+
+# --- the run slot is always released --------------------------------------
+
+@pytest.mark.parametrize('seam', [
+    'download_object',   # pre-flight: fetching the baseline from Storage
+    'load_placemarks',   # pre-flight: parsing it
+    'fetch_kml',         # the download itself
+    'cache_images',      # photo caching
+    'upsert_locations',  # the database write
+    'upload_object',     # post-flight: promoting the new baseline
+])
+def test_every_failure_path_releases_the_run_slot(fake_io, monkeypatch, seam):
+    """The invariant behind POST /pipeline/run: `running` must never be left set.
+
+    pipeline_state is in-memory with no timeout, so an exception that escapes
+    _execute_pipeline_run wedges the service - every later trigger answers
+    'already_running', and the only cure is a restart. The pre-flight baseline
+    download and the post-flight baseline upload used to sit outside the try
+    block and did exactly that; the rest of the list is here so a future
+    refactor cannot reintroduce the hole somewhere else.
+    """
+    def explode(*args, **kwargs):
+        raise RuntimeError(f'{seam} is down')
+
+    monkeypatch.setattr(main, seam, explode)
+    pipeline_state.try_start()
+
+    main._execute_pipeline_run()
+
+    snapshot = pipeline_state.snapshot()
+    assert snapshot['running'] is False, f'{seam} failure left the run slot claimed'
+    assert snapshot['last_result'] == 'error'
+    assert f'{seam} is down' in snapshot['last_error']
+
+
+def test_the_slot_is_reusable_after_a_failure(fake_io, monkeypatch):
+    """The practical consequence: a failed run must not block the next attempt."""
+    def explode(key):
+        raise RuntimeError('Storage unreachable')
+
+    monkeypatch.setattr(main, 'download_object', explode)
+    pipeline_state.try_start()
+    main._execute_pipeline_run()
+
+    assert pipeline_state.try_start() is True
+
+
+def test_a_failed_baseline_fetch_does_not_reach_the_database(fake_io, monkeypatch):
+    """Releasing the slot must not come at the cost of running on regardless -
+    a baseline it cannot read means it cannot validate, so nothing is written."""
+    def explode(key):
+        raise RuntimeError('Storage unreachable')
+
+    monkeypatch.setattr(main, 'download_object', explode)
+
+    main._execute_pipeline_run()
+
+    assert fake_io['upserted'] == []
+    assert fake_io['uploaded'] == []
