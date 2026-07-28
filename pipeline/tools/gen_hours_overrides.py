@@ -80,7 +80,7 @@ CORRECTIONS = {
     # 沼津市芹沢光治良記念館 - 年末年始 sits on line 3 of 定休日
     'd021663ada668fb8': {
         'closed_dates': ['12-29', '12-30', '12-31', '01-01', '01-02', '01-03'],
-        'notes': ['月曜が休日の場合は翌日休館', '休日の翌日も休館'],
+        'notes': ['月曜が祝日の場合は翌日休館', '祝日の翌日も休館（土日祝を除く）'],
     },
     # 三交イン 沼津駅前 - a hotel; the Description carries no 営業時間 label at
     # all, so this asserts local knowledge the source does not state
@@ -174,7 +174,13 @@ def main():
                 if k == 'weekly':
                     entry['weekly'] = {d: v.get(d, []) for d in DAYS}
                 elif k == 'notes':
-                    entry['notes'] = sorted(set(entry.get('notes') or []) | set(v))
+                    # replace, don't union: a hand-authored list is the
+                    # complete set of caveats for that entry. Unioning kept
+                    # the rule tier's auto-extracted parentheticals alongside
+                    # a reworded correction saying the same thing, and the
+                    # panel rendered both as separate ⚠ lines (set-union only
+                    # dedupes byte-identical strings).
+                    entry['notes'] = list(v)
                 else:
                     entry[k] = v
         entry['_names'] = None                   # filled below

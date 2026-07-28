@@ -1687,7 +1687,7 @@
   "irregular": false,
   "permanently_closed": false,
   "confidence": "verified",
-  "notes": ["月曜が祝日の場合、火曜日休み", "月曜が祝日の場合は火曜休み"]
+  "notes": ["月曜が祝日の場合は火曜休み"]
  },
  "a0c4eec79f9deb90": {
   "_names": ["戸田観光協会"],
@@ -2180,7 +2180,7 @@
   "irregular": false,
   "permanently_closed": false,
   "confidence": "verified",
-  "notes": ["休日にあたるときはその翌日", "休日の翌日も休館", "土曜日・日曜日・休日を除く", "月曜が休日の場合は翌日休館"]
+  "notes": ["月曜が祝日の場合は翌日休館", "祝日の翌日も休館（土日祝を除く）"]
  },
  "d076a1f3f9ae1263": {
   "_names": ["イシバシプラザ"],
@@ -2880,7 +2880,7 @@
   "irregular": true,
   "permanently_closed": false,
   "confidence": "verified",
-  "notes": ["休館日あり", "土日祝は11:30から公演終了時間まで（公演により変動）"]
+  "notes": ["土日祝は11:30から公演終了時間まで（公演により変動）", "休館日あり"]
  },
  "ffa2b68c86644560": {
   "_names": ["沼津ラクーン"],
