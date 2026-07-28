@@ -7,9 +7,10 @@ Guidance for Claude Code working in this repo.
 Numazu (沼津) "machiaruki" stamp-rally map: Love Live! Sunshine!! stamp
 locations from a public Google My Maps KML export. Five pieces:
 
-1. **`web/`** — static React + Vite + Leaflet frontend. Numbered
-   color-coded markers (color = collection progress), tap-to-open centered
-   detail panel (photo, member, address, hours, holidays, スタンプ/缶バッジ
+1. **`web/`** — static React + Vite + Leaflet frontend. Numbered markers
+   with two independent visual channels — fill = collection progress, ring
+   = open/closed right now — tap-to-open centered detail panel (photo,
+   member, address, hours, holidays, open-status badge, スタンプ/缶バッジ
    checkboxes), top-right filter panel. Reads location data directly from
    Supabase's REST API (PostgREST) — no KML parsing/pipeline logic here.
 2. **`pipeline/`** — FastAPI service owning the data pipeline (download
@@ -52,7 +53,13 @@ PostgREST expects; local uses plain `GRANT`s instead).
   Sideload: `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
   Signing keystore creds in `android/keystore.properties` (gitignored) —
   see README.md for setup + wiring `web/public/.well-known/assetlinks.json`.
-- No test suite/linter beyond `tsc`/`oxlint` defaults in `web/`.
+- No test suite/linter beyond `tsc`/`oxlint` defaults in `web/`. The
+  closest thing is `cd pipeline && python -m app.hours`, a review harness
+  that parses the live KML and prints every schedule next to its raw text
+  (see "Business hours").
+- **`PIPELINE_DATABASE_URL` in `pipeline/.env` points at the live
+  Supabase**, not a local Postgres — a locally-run pipeline writes to
+  production. There is no separate staging DB.
 - Root `render.yaml`: two Render services, both auto-deploy on push.
   `aqours-machiaruki-pipeline` (`pipeline/Dockerfile`, Docker, free plan,
   `buildFilter` scoped to `pipeline/**`). `aqours-machiaruki-web`
@@ -69,6 +76,11 @@ PostgREST expects; local uses plain `GRANT`s instead).
 - Pipeline change → usually no need to re-trigger `/pipeline/run` unless
   KML-parsing/upsert logic changed — frontend reads Supabase directly.
 - Frontend changes verified manually by the user unless stated otherwise.
+- Schema changes: apply the `ALTER TABLE ... IF NOT EXISTS` line via the
+  Supabase SQL Editor **before** pushing pipeline changes that write the
+  new column (Render auto-deploys on push). Don't paste the whole
+  `db/supabase_schema.sql` — `CREATE POLICY` has no `IF NOT EXISTS` and
+  errors on any project where the policies already exist.
 
 ## Git commit conventions
 
@@ -98,7 +110,13 @@ PostgREST expects; local uses plain `GRANT`s instead).
    Fields located **by string position**, not fixed-neighbor assumption
    — some entries omit the member/hours label. Missing → empty
    string/`'なし'`, not a raise. Touching this: recheck entries missing
-   labels, not just the common case.
+   labels, not just the common case. Returns **both** the display strings
+   (`hours`/`holidays`, cosmetically normalized) and the untouched
+   `raw_hours`/`raw_holidays` — `app/hours.py` content-addresses the raw
+   text, so normalizing first would make its hash depend on this
+   function's cosmetic choices. `holidays` keeps **every** `<br>` line; it
+   used to be `.split('<br>')[0]`, which silently dropped the
+   `※閉店により、終了しました。` marker on the 8 closed shops.
 3. **`app/images.py`**: `cache_images()` hashes each photo URL (SHA1) as
    the Storage object key (`app/storage.py`) — `object_exists()` checked
    first; photo fetched from Google's `mymaps.usercontent.google.com` CDN
@@ -111,17 +129,28 @@ PostgREST expects; local uses plain `GRANT`s instead).
    against the *previous* successful run's KML ("accepted structure"
    baseline) before any DB write — required columns present, every
    placemark has a name + Point geometry, placemark count hasn't dropped
-   past `MIN_COUNT_RATIO` of baseline, address/image extraction hasn't
-   broken past `MAX_EMPTY_ADDRESS_RATIO`/`MAX_EMPTY_IMG_RATIO`. Raises
+   past `MIN_COUNT_RATIO` of baseline, address/image/hours extraction
+   hasn't broken past `MAX_EMPTY_ADDRESS_RATIO`/`MAX_EMPTY_IMG_RATIO`/
+   `MAX_EMPTY_HOURS_RATIO`. The hours check guards *extraction* only — a
+   run where many rows fall back to the rule-based parse tier is reported
+   via `unverified`, never rejected. Raises
    `PipelineValidationError` on deviation; `app/main.py` → HTTP 422,
    discards the download, DB/baseline untouched. First-ever run (no
    baseline): count-drop check skipped, rest still applies.
-5. **`app/db.py`**: `upsert_locations()` upserts on natural key
+5. **`app/hours.py`**: `parse_hours_holidays()` turns the freeform
+   Japanese `営業時間`/`定休日` into the structured `hours_json` column.
+   See "Business hours" below — it's the most involved parsing in the
+   repo and has its own section.
+6. **`app/db.py`**: `upsert_locations()` upserts on natural key
    `(name, lat, lon)`. Never touches `stamp`/`badge` — not in the
    `INSERT` columns (new rows get defaults, both `false`), not in
    `ON CONFLICT DO UPDATE SET` (existing rows keep their state). Pipeline
    owns everything except collection state, which only the frontend
-   writes — don't add `stamp`/`badge` to this query.
+   writes — don't add `stamp`/`badge` to this query. `hours_json` is
+   passed through `psycopg2.extras.Json` at execute time so callers hand
+   over a plain dict and never think about serialization. Returns
+   `(inserted, updated)` — `app/main.py` now uses it rather than
+   discarding it.
 6. **`app/main.py`** / **`app/pipeline_state.py`**: `POST /pipeline/run`
    requires a valid Auth0 ID token (`app/auth.py`'s
    `verify_auth0_token`, see "Auth"), then a fast lock-protected
@@ -130,9 +159,13 @@ PostgREST expects; local uses plain `GRANT`s instead).
    blocking for the full run. Actual work (`_execute_pipeline_run`, same
    fetch/validate/cache/upsert logic) runs via FastAPI `BackgroundTasks`.
    `pipeline_state` holds shared in-memory `running`/`last_result`/
-   `last_error` behind a `threading.Lock` (atomic across thread-pool
-   handlers) — not persisted, so a restart mid-run self-heals to "not
-   running." `GET /pipeline/status` exposes state for polling. A
+   `last_error`/`last_details` behind a `threading.Lock` (atomic across
+   thread-pool handlers) — not persisted, so a restart mid-run self-heals
+   to "not running." `last_details` carries
+   `{inserted, updated, unverified}` from a successful run; `unverified`
+   counts rows whose schedule came from the rule-based tier rather than a
+   hand-reviewed override, and `RefreshDataButton` surfaces it in the
+   toast. `GET /pipeline/status` exposes state for polling. A
    rejected/failed run leaves DB/baseline untouched as before — only
    *when* the pipeline runs/reports changed, not the validation/rollback
    semantics. Baseline KML stored in Supabase Storage
@@ -141,11 +174,72 @@ PostgREST expects; local uses plain `GRANT`s instead).
    `geotable.load()` to parse KML bytes from Storage/Google; nothing
    persists locally across requests.
 
+## Business hours (`pipeline/app/hours.py` → `hours_json`)
+
+The KML's `営業時間`/`定休日` are freeform Japanese. `parse_hours_holidays()`
+turns them into a structured schedule the frontend evaluates against a
+clock. Measured against the live 136-placemark KML: 106 fully determined by
+rules, 8 `年中無休`-only → 24h, 13 with `不定休`/`臨時休館` closures, 8
+permanently closed, 1 with no `営業時間` label at all. (The harness reports
+`irregular: 16` — those 13 plus 3 more the override file flags for
+maintenance closures or an unstated end time.)
+
+**The residual is not a parser weakness** — `不定休` means "irregular
+holidays" and no parser, LLM included, can extract a schedule that was never
+written down. Design goal is *honest* status, not maximal coverage:
+`unknown` is a first-class outcome.
+
+- **Three-tier lookup**, keyed by `sha1(raw_hours \x1f raw_holidays)[:16]`:
+  `verified` (hand-reviewed entry in `app/hours_parsed.json`) → `manual`
+  (same file; local knowledge the source does *not* state — currently only
+  三交イン 沼津駅前, a hotel with no `営業時間` label) → `auto` (rule-based
+  fallback, always available).
+- **Why tier 1 exists**: the rule tier strips **all** parentheticals as
+  noise (that's how it discards `（最終入園15:30）`/`(L.O.16:30)`), so it
+  also discards genuine conditionals like `（木曜日は14:00まで）`. ~6 entries
+  carry real hours inside parentheses. Without the override, びゅうお shows
+  a green ring at 16:00 on a Thursday when it shut at 14:00 — the rule tier
+  fails *confidently*, not loudly. That's what `unverified` is for.
+- **Content-addressed on the raw text**, so identical source text dedupes
+  (136 locations → 125 keys; 7 hotels share `年中無休`/`なし`) — hence
+  `_names` is an array. An absent field still hashes fine, which is what
+  makes the 三交イン `manual` entry stable across runs.
+- **A hash miss never creates a new DB row.** The upsert key is
+  `(name, lat, lon)`; the hash only indexes the override file. A miss (new
+  location, or upstream text edited) just recomputes `hours_json` from the
+  rule tier and bumps `unverified`. An edited entry *should* stop matching —
+  a hand-written override must not keep overriding changed source data.
+- **Intervals are minutes from midnight** (`600` = 10:00). `11:00～26:00`
+  becomes `[660, 1560]`; the frontend looks back a day for `end > 1440` so
+  01:00 still reads as open.
+- **Tokenize weekdays before anything else** (`_tokenize_days`). `日` means
+  both "Sunday" and the suffix in `曜日`/`1月1日`, and compound words must be
+  consumed whole — the `日` inside `平日`/`土日`/`日祝` otherwise gets eaten
+  as Sunday, so `平日・土曜` parsed as `平@sun・@sat`, silently losing all
+  five weekdays. This was the single largest source of wrong parses.
+- Other load-bearing details: parentheticals are stripped **before** `※`
+  notes (`平日（※祝日を除く）10:00~20:00` has a `※` inside the brackets, and
+  stripping to end-of-line first eats the range after them); day scope is
+  read as the text *between* consecutive time ranges, not by splitting on
+  punctuation (`月・火・木・金・土7:00~13:00　日・祝日9:00~13:30` separates two
+  scopes with only a space); `昼休み` ranges are dropped rather than added as
+  opening hours.
+- **Regenerate** with `cd pipeline && python tools/gen_hours_overrides.py`.
+  Existing keys keep their committed entry, so hand corrections survive; only
+  new/changed keys get a fresh rule-based baseline. The `CORRECTIONS` dict in
+  that script is where the *rationale* for each hand-fix lives.
+- **Review harness**: `cd pipeline && python -m app.hours` prints every
+  entry's parse next to its raw text and flags days with no hours that
+  aren't a stated 定休日. There is no test suite in this repo; this is the
+  substitute.
+
 ## Frontend (`web/src`)
 
 - **`data/types.ts`**: `Location` type mirrors the Postgres row exactly
-  (incl. `stamp`/`badge`) — PostgREST returns all columns by default, no
-  separate mapping layer.
+  (incl. `stamp`/`badge` and `hours_json`) — PostgREST returns all columns
+  by default, no separate mapping layer. A `jsonb` column arrives as **real
+  nested JSON**, so `hours_json.weekly.thu` is a live array with no parse
+  step and no fetch change.
 - **`data/supabaseRest.ts`**: shared `API_BASE`/`authHeaders()` for
   `useLocations` (GET) and `useToggleCollected` (PATCH). Swapping
   Supabase projects = two-env-var change here, not code. `authHeaders()`
@@ -175,10 +269,25 @@ PostgREST expects; local uses plain `GRANT`s instead).
 - **`panel/Toast.tsx`**: small fixed-position, `user-select: none`
   bottom-center notification (blue/green/red), used only by
   `RefreshDataButton` — not a global toast system.
-- **`data/markerColors.ts`**: `colorFor()` (blue/orange/green by
-  stamp+badge collected count), `matchesFilters()` (OR semantics across
-  the two "not yet collected" filters) — both operate directly on
-  `Location`'s `stamp`/`badge`, no state-map layer.
+- **`data/markerColors.ts`**: single choke point for both colour and
+  filtering. `colorFor()` (blue/orange/grey by stamp+badge count) is the
+  marker **fill**; `ringColorFor()` maps an `OpenStatus` to the **ring**
+  (green open / amber closing within 2h / red closed / black permanently
+  closed / `null` unknown → no ring drawn). Two independent channels —
+  don't fold open-status into the fill. `matchesFilters()` takes `now` and
+  **AND**s its filters (this changed from OR when the panel went to one
+  checkbox per *concept* rather than per *field*).
+- **`data/openStatus.ts`**: `openStatusFor(hours_json, now)` — pure, no
+  side effects. Order matters: `permanently_closed` short-circuits before
+  the clock (a shut shop is never "open"), then `always_open` (a 24h place
+  must never read `closing_soon`), then closed-dates/closed-days/nth-week,
+  then today's intervals, then yesterday's `end > 1440` overnight shifts.
+  All dates resolved in **Asia/Tokyo** via `Intl.DateTimeFormat`, never the
+  device timezone — the shops are in Numazu wherever the phone thinks it
+  is. `@holiday-jp/holiday_jp` supplies 祝日 (incl. 振替休日 and the
+  astronomical 春分/秋分), needed because the source text treats 祝日 as its
+  own category (`土日祝`, `日曜日・祝日`); `isHoliday()` takes a `YYYY-MM-DD`
+  string, which sidesteps Date/timezone conversion entirely. ~13 kB gzipped.
 - **`hooks/useLocations.ts`**: fetches once on mount; exposes
   `setLocations` for `useToggleCollected`'s optimistic updates. Also
   `refreshOne(id)` — targeted `?id=eq.<id>&select=id,stamp,badge` fetch
@@ -192,10 +301,14 @@ PostgREST expects; local uses plain `GRANT`s instead).
   requests — `DetailPanel` disables + spinners a checkbox while its
   write is pending.
 - **`map/MapView.tsx`** / **`map/markerIcon.ts`**: Leaflet markers use
-  `L.divIcon` (colored circle + number), memoized on `[color, number]`.
-  No Leaflet `Popup` — `DetailPanel` is a plain fixed-position React div,
-  centered in the viewport rather than anchored to the tapped marker
-  (mobile-friendly, no hover on touch).
+  `L.divIcon` (colored circle + number), memoized on
+  `[color, number, ring]` — the ring must be in the cache key or markers
+  keep their first-rendered status forever. The ring is a `box-shadow`,
+  not a `border`, so the disc keeps its full diameter and the number stays
+  centred whether or not a ring is drawn. No Leaflet `Popup` —
+  `DetailPanel` is a plain fixed-position React div, centered in the
+  viewport rather than anchored to the tapped marker (mobile-friendly, no
+  hover on touch).
 - **`panel/Backdrop.tsx`**: dimmed full-screen div while the panel is
   open; tap closes it. Needed since marker clicks bubble to Leaflet's own
   map click handler — without this, a tap opens then immediately closes
@@ -203,6 +316,22 @@ PostgREST expects; local uses plain `GRANT`s instead).
 - **`hooks/useUserLocation.ts`**: browser Geolocation API
   (`getCurrentPosition`, one-shot, not `watchPosition`).
   Denied/unsupported → no error, just no current-location marker.
+- **`App.tsx`**: holds a `now` state ticking every 60s. **Load-bearing** —
+  without it the `visibleLocations` memo and `markerIcon`'s module-level
+  cache both freeze at page-load time, so rings and the `営業中のみ` filter
+  would never update as the clock advances. `now` is threaded to
+  `MapView`, `DetailPanel`, and the filter memo's deps.
+- **`panel/FilterPanel.tsx`**: exactly two flat checkboxes, `未獲得`
+  (`!stamp || !badge`) and `営業中のみ` (status `open` or `closing_soon`),
+  no group headers. They **stack (AND)**. `App.tsx`'s `FILTER_KEYS`
+  validates stored keys, so the pre-existing
+  `['stamp_missing','badge_missing']` localStorage value is silently
+  dropped on load — no migration code needed.
+- **`panel/DetailPanel.tsx`**: `StatusBadge` renders the computed status
+  directly **above** the raw Japanese it was derived from, so a bad parse
+  is visible during ordinary use rather than only when someone goes
+  looking. `irregular` notes render as ⚠ caveat lines; a
+  `permanently_closed` location gets a struck-through grey title.
 - Leaflet's zoom control defaults top-left — filter panel positioned
   top-right (`FilterPanel.tsx`) to avoid overlap.
 

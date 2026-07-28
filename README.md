@@ -6,6 +6,12 @@ an interactive Leaflet map with a tap-to-open detail panel (photo, member,
 address, hours, holidays) and a personal collection tracker (スタンプ/缶バッジ
 checkboxes per location).
 
+Each marker carries two independent signals: its **fill** is collection
+progress, and its **ring** is whether the place is open right now — green
+open, amber closing within two hours, red closed, black permanently closed,
+no ring when the source data doesn't say. The two filter checkboxes (`未獲得`
+and `営業中のみ`) stack.
+
 Four separate pieces:
 
 - **`web/`** — React + Vite + Leaflet static frontend. Reads location data
@@ -71,6 +77,13 @@ Run the schema once against your Supabase project (`psql "$PIPELINE_DATABASE_URL
 Authentication → Third-Party Auth), then start the service and trigger a
 pipeline run (needs a real Auth0 ID token — easiest to copy one out of the
 frontend's network tab after logging in):
+
+> On a project created before the `hours_json` column existed, the
+> `CREATE TABLE IF NOT EXISTS` above is a no-op and won't add it. Run the
+> single `ALTER TABLE locations ADD COLUMN IF NOT EXISTS hours_json JSONB;`
+> from `db/supabase_schema.sql` in the Supabase SQL Editor instead — don't
+> paste the whole file, since `CREATE POLICY` has no `IF NOT EXISTS` and
+> will error where the policies already exist.
 
 ```bash
 cd pipeline
@@ -155,9 +168,40 @@ cd android
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
+## Business hours
+
+The KML's `営業時間`/`定休日` fields are freeform Japanese —
+`10:00～20:00（木曜日は14:00まで）`, `第二・第四火曜日`, `11：00～26：00`,
+`不定休`. `pipeline/app/hours.py` turns them into a structured `hours_json`
+column (intervals as minutes from midnight) that the frontend evaluates
+against the clock in `Asia/Tokyo`.
+
+Parsing is three tiers, keyed by a hash of the raw text: hand-reviewed
+entries in `pipeline/app/hours_parsed.json`, then a rule-based fallback.
+Tier one exists because the rule tier discards parentheticals as noise
+(`（最終入園15:30）`, `(L.O.16:30)`) and so also discards the handful that
+carry real hours. Anything falling back to the rule tier is counted and
+reported in the データ更新 toast as `N件が未確認`, because that tier fails
+confidently rather than loudly.
+
+Roughly 22% of locations can't be fully determined — `不定休` means
+"irregular holidays" and the schedule was simply never written down. Those
+render honestly (no ring, or a ⚠ caveat) rather than guessing.
+
+```bash
+cd pipeline
+python -m app.hours                    # review harness: every parse vs its raw text
+python tools/gen_hours_overrides.py    # regenerate the override file after a KML change
+```
+
+Regenerating preserves existing entries, so hand corrections survive; only
+new or upstream-edited entries get a fresh rule-based baseline.
+
 ## Notes
 
 - `pipeline`'s upsert (`pipeline/app/db.py`) is keyed on the natural key
   `(name, lat, lon)` and deliberately never touches the `stamp`/`badge`
   columns — those are collection state, written only by the frontend
   (`PATCH` straight to Supabase's REST API), never by the pipeline.
+- `PIPELINE_DATABASE_URL` normally points at the live Supabase, so a
+  locally-run `pipeline/` writes to production — there's no staging DB.
