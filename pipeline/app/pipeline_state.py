@@ -7,29 +7,37 @@ _lock = threading.Lock()
 _running = False
 _last_result = None  # None | 'success' | 'error'
 _last_error = None
+_last_details = None  # row counts from the last successful run
 
 
 def try_start():
     """Atomically claim the run slot. Returns True if this call starts a
     new run, False if one is already in progress."""
-    global _running, _last_result, _last_error
+    global _running, _last_result, _last_error, _last_details
     with _lock:
         if _running:
             return False
         _running = True
         _last_result = None
         _last_error = None
+        _last_details = None
         return True
 
 
-def finish(result, error=None):
-    global _running, _last_result, _last_error
+def finish(result, error=None, details=None):
+    global _running, _last_result, _last_error, _last_details
     with _lock:
         _running = False
         _last_result = result
         _last_error = error
+        _last_details = details
 
 
 def snapshot():
     with _lock:
-        return {'running': _running, 'last_result': _last_result, 'last_error': _last_error}
+        return {
+            'running': _running,
+            'last_result': _last_result,
+            'last_error': _last_error,
+            'last_details': _last_details,
+        }

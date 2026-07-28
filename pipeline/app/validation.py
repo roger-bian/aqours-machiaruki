@@ -21,6 +21,13 @@ MIN_COUNT_RATIO = 0.5
 MAX_EMPTY_ADDRESS_RATIO = 0.1
 MAX_EMPTY_IMG_RATIO = 0.1
 
+# hours drive the open/closed marker rings, so a Description change that broke
+# 営業時間 extraction used to pass validation silently. Exactly one entry
+# legitimately has no 営業時間 label today (三交イン 沼津駅前), so this has ample
+# headroom. Note this guards *extraction*, not parse confidence - a run where
+# many rows fall back to the rule-based tier is reported, never rejected.
+MAX_EMPTY_HOURS_RATIO = 0.1
+
 
 class PipelineValidationError(Exception):
     pass
@@ -66,4 +73,10 @@ def validate_structure(placemarks, baseline_count, fields_by_row):
     if empty_img / count > MAX_EMPTY_IMG_RATIO:
         raise PipelineValidationError(
             f'too many placemarks missing image: {empty_img}/{count}'
+        )
+
+    empty_hours = sum(1 for f in fields_by_row if not f['hours'])
+    if empty_hours / count > MAX_EMPTY_HOURS_RATIO:
+        raise PipelineValidationError(
+            f'too many placemarks missing business hours: {empty_hours}/{count}'
         )

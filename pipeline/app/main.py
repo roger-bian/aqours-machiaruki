@@ -13,6 +13,7 @@ from app import pipeline_state
 from app.auth import verify_auth0_token
 from app.db import upsert_locations
 from app.description import extract_img_url, parse_description
+from app.hours import parse_hours_holidays
 from app.images import cache_images
 from app.kml import fetch_kml, load_placemarks
 from app.storage import download_object, upload_object
@@ -54,6 +55,8 @@ def _build_records(placemarks):
             'address': fields['address'],
             'hours': fields['hours'],
             'holidays': fields['holidays'],
+            'hours_json': parse_hours_holidays(
+                fields['raw_hours'], fields['raw_holidays']),
             '_raw_img_url': img_url,
         })
     return records
@@ -80,7 +83,12 @@ def _execute_pipeline_run():
             placemarks = load_placemarks(new_tmp.name)
             records = _build_records(placemarks)
             fields_by_row = [
-                {'address': r['address'], 'img_url': r['_raw_img_url']} for r in records
+                {
+                    'address': r['address'],
+                    'img_url': r['_raw_img_url'],
+                    'hours': r['hours'],
+                }
+                for r in records
             ]
             validate_structure(placemarks, baseline_count, fields_by_row)
 
@@ -89,7 +97,12 @@ def _execute_pipeline_run():
                 record['img_url'] = img_url
                 del record['_raw_img_url']
 
-            upsert_locations(records)
+            inserted, updated = upsert_locations(records)
+            # rows the committed overrides didn't cover, so their schedule came
+            # from the rule-based tier and hasn't been eyeballed by a human -
+            # surfaced in the frontend toast so the gap is pulled, not remembered
+            unverified = sum(
+                1 for r in records if r['hours_json'].get('confidence') == 'auto')
         except PipelineValidationError as e:
             pipeline_state.finish('error', f'KML structure validation failed: {e}')
             return
@@ -100,7 +113,11 @@ def _execute_pipeline_run():
     # only now, having successfully validated and upserted, does the new
     # download replace the accepted-structure baseline for the next run
     upload_object(BASELINE_KML_KEY, new_kml_bytes, KML_CONTENT_TYPE)
-    pipeline_state.finish('success')
+    pipeline_state.finish('success', details={
+        'inserted': inserted,
+        'updated': updated,
+        'unverified': unverified,
+    })
 
 
 @app.post('/pipeline/run')

@@ -12,6 +12,11 @@ CREATE TABLE IF NOT EXISTS locations (
     address TEXT,
     hours TEXT,
     holidays TEXT,
+    -- structured schedule parsed from `hours`/`holidays` by
+    -- pipeline/app/hours.py; the frontend evaluates it against the clock to
+    -- colour each marker's open/closed ring. `hours`/`holidays` remain the
+    -- human-readable text shown in the detail panel.
+    hours_json JSONB,
     img_url TEXT,
     -- collection state, toggled from the frontend directly (not touched by
     -- the pipeline's upsert once a row exists - see pipeline/app/db.py)
@@ -20,6 +25,10 @@ CREATE TABLE IF NOT EXISTS locations (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (name, lat, lon)
 );
+
+-- migration path for databases created before hours_json existed (the
+-- CREATE TABLE above is IF NOT EXISTS, so it is a no-op on those)
+ALTER TABLE locations ADD COLUMN IF NOT EXISTS hours_json JSONB;
 
 GRANT USAGE ON SCHEMA public TO web_anon;
 GRANT SELECT ON locations TO web_anon;
