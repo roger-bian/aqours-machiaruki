@@ -84,13 +84,18 @@ export function RefreshDataButton() {
           return;
         }
         if (s.last_result === 'success') {
-          // locations whose schedule fell back to the rule-based parser rather
-          // than a hand-reviewed entry. That parser fails confidently, not
-          // loudly, so the count is surfaced here instead of left to be
-          // noticed - see "Handling new locations" in the plan.
+          // 未確認 = locations whose schedule fell back to the rule-based parser
+          // rather than a hand-reviewed entry. That parser fails confidently,
+          // not loudly, so the count is surfaced here instead of left to be
+          // noticed. Reported even when zero: a silent toast is ambiguous
+          // between "nothing needs review" and "the count stopped working".
+          const inserted = s.last_details?.inserted ?? 0;
           const unverified = s.last_details?.unverified ?? 0;
-          const suffix = unverified > 0 ? `（${unverified}件が未確認）` : '';
-          showToast('success', `更新が完了しました${suffix}。ページをリロードします。`, true);
+          showToast(
+            'success',
+            `更新が完了しました（新規${inserted}件 / 未確認${unverified}件）。ページをリロードします。`,
+            true,
+          );
         } else {
           showToast('error', '更新中にエラーが発生しました。');
         }
