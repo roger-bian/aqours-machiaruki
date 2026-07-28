@@ -42,5 +42,10 @@ def parse_description(text):
 
 
 def extract_img_url(description):
-    match = re.findall('<img src="(.*)" height', description)
-    return match[0].strip() if match else ''
+    # [^"]* rather than .* - the greedy version spanned from the first tag's src
+    # to the last tag's ` height` when a Description carried two <img> tags,
+    # producing one merged non-URL. Every entry has a single photo today, so this
+    # never fired; it would have been a broken <img src> in the detail panel
+    # rather than an error.
+    match = re.search(r'<img src="([^"]*)" height', description)
+    return match.group(1).strip() if match else ''

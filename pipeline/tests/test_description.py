@@ -103,3 +103,18 @@ def test_extract_img_url_without_an_image():
     """Every placemark in the live export has one today, so this is the
     defensive path - cache_images() maps '' straight through."""
     assert extract_img_url('メンバー／小原鞠莉<br>住所／沼津市') == ''
+
+
+def test_extract_img_url_takes_the_first_of_several():
+    """A greedy `.*` used to run from the first src to the last ` height`,
+    returning one merged non-URL - a broken <img src> in the detail panel rather
+    than an error anywhere."""
+    two = (
+        '<img src="https://example.com/one.jpg" height="200" width="auto" />'
+        '<img src="https://example.com/two.jpg" height="200" width="auto" />'
+    )
+    assert extract_img_url(two) == 'https://example.com/one.jpg'
+
+
+def test_extract_img_url_never_spans_a_quote():
+    assert '"' not in extract_img_url(FULL)
