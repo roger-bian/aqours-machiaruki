@@ -68,7 +68,11 @@ export function RefreshDataButton() {
   async function fetchStatus() {
     const res = await fetch(`${PIPELINE_BASE}/pipeline/status`, { headers: await authHeader() });
     if (!res.ok) throw new Error(`status check failed: ${res.status}`);
-    return res.json() as Promise<{ running: boolean; last_result: 'success' | 'error' | null }>;
+    return res.json() as Promise<{
+      running: boolean;
+      last_result: 'success' | 'error' | null;
+      last_details: { inserted: number; updated: number; unverified: number } | null;
+    }>;
   }
 
   function pollUntilDone() {
@@ -80,7 +84,13 @@ export function RefreshDataButton() {
           return;
         }
         if (s.last_result === 'success') {
-          showToast('success', '更新が完了しました。ページをリロードします。', true);
+          // locations whose schedule fell back to the rule-based parser rather
+          // than a hand-reviewed entry. That parser fails confidently, not
+          // loudly, so the count is surfaced here instead of left to be
+          // noticed - see "Handling new locations" in the plan.
+          const unverified = s.last_details?.unverified ?? 0;
+          const suffix = unverified > 0 ? `（${unverified}件が未確認）` : '';
+          showToast('success', `更新が完了しました${suffix}。ページをリロードします。`, true);
         } else {
           showToast('error', '更新中にエラーが発生しました。');
         }
