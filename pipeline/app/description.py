@@ -14,19 +14,30 @@ def parse_description(text):
         end = hits[i + 1][0] if i + 1 < len(hits) else len(text)
         fields[label] = re.sub('(<br>)+$', '', text[start:end]).strip()
 
-    hours = fields.get('営業時間／', '')\
+    # the untouched slices, kept alongside the display strings because
+    # app/hours.py content-addresses the *raw* text - normalizing first would
+    # make the hash depend on this function's cosmetic choices
+    raw_hours = fields.get('営業時間／', '')
+    raw_holidays = fields.get('定休日／', '')
+
+    hours = raw_hours\
         .replace('　', '')\
         .replace('：', ':')\
         .replace('~', '～').replace(' ～ ', '～')\
         .replace('<br>', ' ')
 
-    holidays = fields.get('定休日／', '').split('<br>')[0].strip() or 'なし'
+    # every line is kept: this used to be `.split('<br>')[0]`, which silently
+    # dropped the `※閉店により、終了しました。` marker on the 8 closed shops and
+    # the stamp-location notes on several others
+    holidays = raw_holidays.replace('<br>', ' ').strip() or 'なし'
 
     return {
         'member': fields.get('メンバー／', ''),
         'address': fields.get('住所／', '').replace('<br>', ' ').strip(),
         'hours': hours,
         'holidays': holidays,
+        'raw_hours': raw_hours,
+        'raw_holidays': raw_holidays,
     }
 
 
