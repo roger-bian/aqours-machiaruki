@@ -17,6 +17,8 @@ const TOAST_STYLE = (variant: ToastVariant): React.CSSProperties => ({
   padding: '10px 20px',
   borderRadius: 20,
   textAlign: 'center',
+  // messages break themselves into one sentence per line with '\n'
+  whiteSpace: 'pre-line',
   userSelect: 'none',
   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)',
 });

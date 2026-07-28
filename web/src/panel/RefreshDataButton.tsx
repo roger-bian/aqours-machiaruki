@@ -26,7 +26,12 @@ const BUTTON_STYLE: React.CSSProperties = {
   gap: 8,
 };
 
-type Status = 'idle' | 'checking';
+// 'checking' = the POST round-trip, 'polling' = waiting on GET /pipeline/status
+// for the run itself. Both spin the button: the POST returns almost immediately,
+// so a spinner covering only that would flash for a fraction of a second and
+// then leave the button looking idle for the minute-plus the pipeline actually
+// takes. 'polling' is also entered without a click - see the mount effect.
+type Status = 'idle' | 'checking' | 'polling';
 
 // Triggers the pipeline's KML re-fetch/validate/upsert cycle. The backend
 // (pipeline/app/main.py's POST /pipeline/run) does a fast lock-protected
@@ -76,6 +81,7 @@ export function RefreshDataButton() {
   }
 
   function pollUntilDone() {
+    setStatus('polling');
     const poll = async () => {
       try {
         const s = await fetchStatus();
@@ -83,6 +89,7 @@ export function RefreshDataButton() {
           pollTimeoutRef.current = setTimeout(poll, POLL_INTERVAL_MS);
           return;
         }
+        setStatus('idle');
         if (s.last_result === 'success') {
           // 未確認 = locations whose schedule fell back to the rule-based parser
           // rather than a hand-reviewed entry. That parser fails confidently,
@@ -93,7 +100,7 @@ export function RefreshDataButton() {
           const unverified = s.last_details?.unverified ?? 0;
           showToast(
             'success',
-            `更新が完了しました（新規${inserted}件 / 未確認${unverified}件）。ページをリロードします。`,
+            `更新が完了しました。\n（新規${inserted}件 / 未確認${unverified}件）\nページをリロードします。`,
             true,
           );
         } else {
@@ -113,7 +120,7 @@ export function RefreshDataButton() {
       try {
         const s = await fetchStatus();
         if (s.running) {
-          showToast('info', '更新処理がすでに実行中です。しばらくお待ちください。');
+          showToast('info', '更新処理がすでに実行中です。\nしばらくお待ちください。');
           pollUntilDone();
         }
       } catch {
@@ -133,12 +140,13 @@ export function RefreshDataButton() {
       const body = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(body.detail ?? `pipeline trigger failed: ${res.status}`);
 
-      setStatus('idle');
       if (body.status === 'already_running') {
-        showToast('info', '更新処理がすでに実行中です。しばらくお待ちください。');
+        showToast('info', '更新処理がすでに実行中です。\nしばらくお待ちください。');
       } else {
-        showToast('info', 'データ更新を開始しました。しばらくお待ち下さい。');
+        showToast('info', 'データ更新を開始しました。\nしばらくお待ち下さい。');
       }
+      // no setStatus('idle') between the two - pollUntilDone() takes the button
+      // straight from 'checking' to 'polling' so the spinner never blinks off
       pollUntilDone();
     } catch {
       setStatus('idle');
@@ -148,8 +156,12 @@ export function RefreshDataButton() {
 
   return (
     <>
-      <button style={BUTTON_STYLE} onClick={handleClick} disabled={status === 'checking'}>
-        {status === 'checking' && <span className="spinner" />}
+      <button
+        style={status === 'idle' ? BUTTON_STYLE : { ...BUTTON_STYLE, cursor: 'default' }}
+        onClick={handleClick}
+        disabled={status !== 'idle'}
+      >
+        {status !== 'idle' && <span className="spinner" />}
         データ更新
       </button>
       {toast && <Toast variant={toast.variant} message={toast.message} />}
