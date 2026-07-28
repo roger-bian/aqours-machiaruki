@@ -53,10 +53,13 @@ PostgREST expects; local uses plain `GRANT`s instead).
   Sideload: `adb install -r app/build/outputs/apk/debug/app-debug.apk`.
   Signing keystore creds in `android/keystore.properties` (gitignored) —
   see README.md for setup + wiring `web/public/.well-known/assetlinks.json`.
-- No test suite/linter beyond `tsc`/`oxlint` defaults in `web/`. The
-  closest thing is `cd pipeline && python -m app.hours`, a review harness
-  that parses the live KML and prints every schedule next to its raw text
-  (see "Business hours").
+- **Tests**: `make test` runs both suites (~2s, fully offline — no network,
+  no DB). `make test-py` = `cd pipeline && python -m pytest`; `make test-web`
+  = `cd web && npm test` (vitest). pytest needs
+  `pip install -r pipeline/requirements-dev.txt` once; it is deliberately not
+  in `requirements.txt` so `pipeline/Dockerfile`'s image stays slim. Linting
+  is still just `tsc`/`oxlint` defaults in `web/`. See "Tests" below for what
+  is covered and the traps in writing more.
 - **`PIPELINE_DATABASE_URL` in `pipeline/.env` points at the live
   Supabase**, not a local Postgres — a locally-run pipeline writes to
   production. There is no separate staging DB.
@@ -117,14 +120,18 @@ PostgREST expects; local uses plain `GRANT`s instead).
    function's cosmetic choices. `holidays` keeps **every** `<br>` line; it
    used to be `.split('<br>')[0]`, which silently dropped the
    `※閉店により、終了しました。` marker on the 8 closed shops.
-3. **`app/images.py`**: `cache_images()` hashes each photo URL (SHA1) as
-   the Storage object key (`app/storage.py`) — `object_exists()` checked
-   first; photo fetched from Google's `mymaps.usercontent.google.com` CDN
-   (blocks/rate-limits repeats) only on a miss, uploaded via
-   `upload_object()` (`x-upsert: true`). Storage *is* the dedupe cache —
-   no local disk, since Render's free-plan container has none and a
-   restart/redeploy would lose it. Frontend reads the `img_url` column
-   (Storage public URL), not a local path.
+3. **`app/images.py`**: `cache_images()` hashes each location's **natural
+   key** (`name|lat|lon`, SHA1) as the Storage object key
+   (`app/storage.py`) — *not* the photo URL. Google embeds a per-request
+   token in that URL, so it differs on every KML fetch; keying on it meant
+   the cache never hit and every run silently re-uploaded a duplicate of
+   every photo. `object_exists()` checked first; photo fetched from
+   Google's `mymaps.usercontent.google.com` CDN (blocks/rate-limits
+   repeats) only on a miss, uploaded via `upload_object()`
+   (`x-upsert: true`). Storage *is* the dedupe cache — no local disk, since
+   Render's free-plan container has none and a restart/redeploy would lose
+   it. Frontend reads the `img_url` column (Storage public URL), not a
+   local path.
 4. **`app/validation.py`**: `validate_structure()` checks a fresh KML
    against the *previous* successful run's KML ("accepted structure"
    baseline) before any DB write — required columns present, every
@@ -134,9 +141,12 @@ PostgREST expects; local uses plain `GRANT`s instead).
    `MAX_EMPTY_HOURS_RATIO`. The hours check guards *extraction* only — a
    run where many rows fall back to the rule-based parse tier is reported
    via `unverified`, never rejected. Raises
-   `PipelineValidationError` on deviation; `app/main.py` → HTTP 422,
-   discards the download, DB/baseline untouched. First-ever run (no
-   baseline): count-drop check skipped, rest still applies.
+   `PipelineValidationError` on deviation; since the run is a background
+   task the triggering request has already returned, so `app/main.py`
+   records it as `last_result: 'error'` for `GET /pipeline/status` to pick
+   up (no HTTP error code), discards the download, DB/baseline untouched.
+   First-ever run (no baseline): count-drop check skipped, rest still
+   applies.
 5. **`app/hours.py`**: `parse_hours_holidays()` turns the freeform
    Japanese `営業時間`/`定休日` into the structured `hours_json` column.
    See "Business hours" below — it's the most involved parsing in the
@@ -151,13 +161,21 @@ PostgREST expects; local uses plain `GRANT`s instead).
    over a plain dict and never think about serialization. Returns
    `(inserted, updated)` — `app/main.py` now uses it rather than
    discarding it.
-6. **`app/main.py`** / **`app/pipeline_state.py`**: `POST /pipeline/run`
+7. **`app/main.py`** / **`app/pipeline_state.py`**: `POST /pipeline/run`
    requires a valid Auth0 ID token (`app/auth.py`'s
    `verify_auth0_token`, see "Auth"), then a fast lock-protected
    check-and-kickoff, returning almost immediately —
    `{'status': 'started'}` or `{'status': 'already_running'}` — not
-   blocking for the full run. Actual work (`_execute_pipeline_run`, same
-   fetch/validate/cache/upsert logic) runs via FastAPI `BackgroundTasks`.
+   blocking for the full run. Actual work runs via FastAPI
+   `BackgroundTasks`: `_run_pipeline()` does the fetch/validate/cache/upsert
+   and **raises**, while `_execute_pipeline_run()` is a thin wrapper that
+   only reports. Keep it that way — **every** path must call
+   `pipeline_state.finish()` exactly once. An escaping exception leaves
+   `running` set with nothing to clear it, so every later trigger answers
+   `already_running` until the container restarts, and the request that
+   started the run already returned 200 so nothing surfaces the wedge.
+   (Regression: the baseline download and the final baseline upload used to
+   sit outside the `try`.)
    `pipeline_state` holds shared in-memory `running`/`last_result`/
    `last_error`/`last_details` behind a `threading.Lock` (atomic across
    thread-pool handlers) — not persisted, so a restart mid-run self-heals
@@ -230,8 +248,10 @@ written down. Design goal is *honest* status, not maximal coverage:
   that script is where the *rationale* for each hand-fix lives.
 - **Review harness**: `cd pipeline && python -m app.hours` prints every
   entry's parse next to its raw text and flags days with no hours that
-  aren't a stated 定休日. There is no test suite in this repo; this is the
-  substitute.
+  aren't a stated 定休日. It fetches the **live** KML, so it's the tool for
+  eyeballing *new* upstream text — not a change gate. For that use
+  `make test`: `tests/test_hours_golden.py` runs the same checks offline
+  over the committed corpus, including the `!!` gap flag (see "Tests").
 
 ## Frontend (`web/src`)
 
@@ -334,6 +354,47 @@ written down. Design goal is *honest* status, not maximal coverage:
   `permanently_closed` location gets a struck-through grey title.
 - Leaflet's zoom control defaults top-left — filter panel positioned
   top-right (`FilterPanel.tsx`) to avoid overlap.
+
+## Tests
+
+`make test` → `pipeline/tests/` (pytest) + `web/src/data/*.test.ts` (vitest).
+Both fully offline: verified to pass with `socket.connect` blocked and with
+`pipeline/.env` renamed away. Total ~2s, so it's a per-change gate, not a CI
+ritual.
+
+- **The suite must never reach production.** `PIPELINE_DATABASE_URL` points at
+  the live Supabase and there's no staging DB, so `tests/conftest.py` stubs
+  `psycopg2.connect` to raise for every test (an autouse fixture) and sets
+  dummy env vars. **`load_dotenv()` doesn't override already-set vars**, which
+  is what makes conftest's values win over the real `pipeline/.env`.
+- **`conftest.py`'s import order is load-bearing.** Env vars are set at module
+  top *before* any `app.*` import (`app/auth.py` reads three of them with bare
+  `os.environ[...]` at module level), then `import app.kml` runs *before*
+  anything can pull in geotable/osgeo, so its `OGR_SKIP` write lands before
+  GDAL locks in a driver.
+- **`TestClient` runs `BackgroundTasks` synchronously** before returning the
+  response. A `POST /pipeline/run` test that doesn't monkeypatch
+  `app.main._execute_pipeline_run` runs the real pipeline against production.
+- **Patch `app.images.*`, not `app.storage.*`** — `app/images.py` does
+  `from app.storage import ...`, binding those names into its own namespace at
+  import time.
+- **`tests/fixtures/sample.kml`**: 12 real placemarks trimmed from a live
+  export (only the photo tokens stubbed), each covering a specific parse shape
+  — see the comment at the top of the file. 12 rather than 6 because
+  `validate_structure` rejects >10% of rows missing hours and exactly one entry
+  legitimately has no `営業時間` label; a smaller fixture trips the ratio and
+  forces tests to fake the real validator away. Keep that proportion if you add
+  to it.
+- **`test_hours_golden.py` is the highest-value file.** `hours_parsed.json`
+  carries `_raw_hours`/`_raw_holidays` beside each expected parse, so it doubles
+  as a golden corpus: the rule tier must reproduce 113 of the 125 entries
+  exactly and must still *fail* on exactly the 12 `CORRECTIONS` keys (a stale
+  hand-fix is as much a bug as a regression). Also pins that every entry
+  satisfies the frontend's `HoursJson` shape, and allowlists the 5 entries with
+  a legitimate source-text hours gap so a *new* gap fails.
+- Not covered by choice: `app/auth.py`'s JWT verification (needs an RSA
+  keypair + JWKS stub to test PyJWT doing its job), React components,
+  `app/db.py` against a real Postgres, and `android/`.
 
 ## Android app (`android/`)
 

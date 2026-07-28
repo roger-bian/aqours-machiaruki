@@ -197,6 +197,30 @@ python tools/gen_hours_overrides.py    # regenerate the override file after a KM
 Regenerating preserves existing entries, so hand corrections survive; only
 new or upstream-edited entries get a fresh rule-based baseline.
 
+## Tests
+
+```bash
+pip install -r pipeline/requirements-dev.txt   # pytest, once
+make test                                      # both suites, ~2s
+make test-py                                   # pytest for pipeline/ only
+make test-web                                  # vitest for web/ only
+```
+
+Both halves run **fully offline** — no network, no database. The KML is a
+committed fixture trimmed from a real export, and `pipeline/tests/conftest.py`
+stubs out database access, since `PIPELINE_DATABASE_URL` normally points at
+production.
+
+The weight is on the two places where a bug is a *wrong answer* rather than a
+crash: the freeform-Japanese hours parser, and the clock evaluation that turns
+its output into a marker's open/closed ring. `pipeline/app/hours_parsed.json`
+doubles as a golden corpus for the first — it stores each entry's raw source
+text beside its expected parse, so the rule tier is checked against all 125
+committed entries at once.
+
+`python -m app.hours` (above) is still the tool for eyeballing new upstream
+text, since it fetches the live KML. `make test` is the change gate.
+
 ## Notes
 
 - `pipeline`'s upsert (`pipeline/app/db.py`) is keyed on the natural key
