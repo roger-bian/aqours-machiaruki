@@ -3,6 +3,7 @@ import { MapView } from './map/MapView';
 import { DetailPanel } from './panel/DetailPanel';
 import { FilterPanel } from './panel/FilterPanel';
 import { RefreshDataButton } from './panel/RefreshDataButton';
+import { ClockPanel } from './panel/ClockPanel';
 import { Backdrop } from './panel/Backdrop';
 import { useLocations } from './hooks/useLocations';
 import { useToggleCollected } from './hooks/useToggleCollected';
@@ -88,6 +89,7 @@ function App() {
       />
       <FilterPanel activeFilters={activeFilters} onToggle={onToggleFilter} />
       <RefreshDataButton />
+      <ClockPanel />
       {selectedLocation && (
         <>
           <Backdrop onClose={() => setSelectedId(null)} />
