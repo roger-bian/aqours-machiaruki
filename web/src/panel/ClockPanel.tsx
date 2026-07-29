@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { holidayNameInJst } from '../data/openStatus';
 
 const PANEL_STYLE: React.CSSProperties = {
   position: 'fixed',
@@ -32,7 +33,13 @@ const JST_CLOCK = new Intl.DateTimeFormat('ja-JP', {
 function formatJst(at: Date): string {
   const p: Record<string, string> = {};
   for (const { type, value } of JST_CLOCK.formatToParts(at)) p[type] = value;
-  return `${p.weekday} ${p.month}/${p.day} ${p.hour}:${p.minute}:${p.second}`;
+  // 祝日 is its own schedule category in the source text, so on a holiday the
+  // rings follow the 'hol' hours rather than the weekday shown here - naming
+  // the holiday is what makes that visible instead of looking like a bad parse.
+  const holiday = holidayNameInJst(at);
+  const label = holiday ? ` (${holiday})` : '';
+  return `${p.weekday} ${p.month}/${p.day}${label} `
+    + `${p.hour}:${p.minute}:${p.second}`;
 }
 
 // Ticks on its own second-resolution interval rather than reusing App.tsx's

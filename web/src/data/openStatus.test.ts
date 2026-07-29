@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   closingTimeFor,
   dayKeyInJst,
+  holidayNameInJst,
   minutesInJst,
   openStatusFor,
 } from './openStatus'
@@ -55,6 +56,18 @@ describe('timezone handling', () => {
     // holiday is never just its weekday
     expect(dayKeyInJst(jst('2026-01-01T12:00'))).toBe('hol')
     expect(dayKeyInJst(jst('2026-07-28T12:00'))).toBe('tue')
+  })
+
+  it('names the holiday in Japanese, or null on an ordinary day', () => {
+    expect(holidayNameInJst(jst('2026-07-20T12:00'))).toBe('海の日')
+    expect(holidayNameInJst(jst('2026-01-01T12:00'))).toBe('元日')
+    expect(holidayNameInJst(jst('2026-07-28T12:00'))).toBeNull()
+  })
+
+  it('picks the holiday by the JST date, not the device one', () => {
+    // 2026-07-19T16:00Z is already 海の日 in Numazu; 07-20T16:00Z no longer is
+    expect(holidayNameInJst(new Date('2026-07-19T16:00:00Z'))).toBe('海の日')
+    expect(holidayNameInJst(new Date('2026-07-20T16:00:00Z'))).toBeNull()
   })
 })
 

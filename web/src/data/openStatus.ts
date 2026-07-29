@@ -50,6 +50,19 @@ export function dayKeyInJst(at: Date): DayKey {
   return scheduleKey(jstParts(at));
 }
 
+// holiday_jp's own date-keyed map. Read directly rather than via `between()`,
+// which formats its Date arguments in the device timezone - same reason
+// isHoliday() is called with a YYYY-MM-DD string above.
+const HOLIDAYS = holidayJp.holidays as Record<
+  string, { name: string } | undefined
+>;
+
+/** Japanese name of the public holiday on `at` in JST (海の日), else null.
+ *  Shown by the clock panel. */
+export function holidayNameInJst(at: Date): string | null {
+  return HOLIDAYS[jstParts(at).date]?.name ?? null;
+}
+
 export function minutesInJst(at: Date): number {
   return jstParts(at).minutes;
 }
