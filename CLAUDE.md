@@ -346,6 +346,28 @@ written down. Design goal is *honest* status, not maximal coverage:
   astronomical 春分/秋分), needed because the source text treats 祝日 as its
   own category (`土日祝`, `日曜日・祝日`); `isHoliday()` takes a `YYYY-MM-DD`
   string, which sidesteps Date/timezone conversion entirely. ~13 kB gzipped.
+- **`data/textLines.ts`**: `toDisplayLines()` — the only place that decides
+  where the freeform Japanese in `name`/`address`/`hours`/`holidays` breaks
+  into lines. Pure, so the rules are pinned offline (`textLines.test.ts`)
+  rather than eyeballed. **Deliberately not in the pipeline** even though
+  those fields are parsed there: line breaking is presentation, a pipeline
+  change would need a データ更新 run against production to show up, and
+  `app/hours.py` content-addresses `raw_hours`/`raw_holidays`.
+  A parenthetical is captured as its own `split()` group, which makes it
+  **atomic** (a space or `、` inside never breaks — this is what stopped
+  ほさか's `（6月～9月 10:00～20:00）` being cut in half by the whitespace
+  rule) and leaves an **unclosed** bracket unmatched, so text nobody
+  anticipated survives whole instead of being mangled. Then: always break
+  after `）` *unless* a non-comma symbol follows (`(不定休)・日` stays
+  together); break
+  before `（` only when its contents run **≥10 characters**, since a short
+  qualifier like `（L.O.16:30）` reads as part of the time it follows; a comma
+  *outside* brackets is **replaced by** a break, interior ones left alone.
+  Those last two together are why no rendered line starts with orphaned
+  punctuation. `breakOnWhitespace` exists because whitespace is how a source
+  `<br>` arrives (`description.py` converts it) for the three fields, but a
+  space in a `name` is just a space — pass `false` there or
+  `三交イン 沼津駅前` splits in two.
 - **`hooks/useLocations.ts`**: fetches once on mount; exposes
   `setLocations` for `useToggleCollected`'s optimistic updates. Also
   `refreshOne(id)` — targeted `?id=eq.<id>&select=id,stamp,badge` fetch
@@ -390,13 +412,27 @@ written down. Design goal is *honest* status, not maximal coverage:
   is visible during ordinary use rather than only when someone goes
   looking. `irregular` notes render as ⚠ caveat lines; a
   `permanently_closed` location gets a struck-through grey title.
+  住所/営業時間/定休日 each sit behind a `CollapsibleField`, **collapsed on
+  open** and expanding independently — the photo, name and status badge have
+  to fit a phone screen without scrolling, and one 営業時間 (歴史民俗資料館)
+  runs nine lines on its own. Each field owns its `useState`, and the three
+  sit under a wrapper **keyed on `location.id`**: tapping a second marker
+  leaves this panel mounted, so without the key a field would stay expanded
+  from the previous location. The header is a full-width flex row so the whole
+  line is the tap target (one-handed use while walking), not just the label
+  text. Bodies and the ⚠ notes carry `textAlign: 'left'` + a 10px gutter
+  against `PANEL_STYLE`'s centered default. Field values and the name both go
+  through `toDisplayLines` (see `data/textLines.ts`) — the name with
+  `breakOnWhitespace: false`; the address's Maps link still queries the
+  untouched string, since breaking is for reading only.
 - Leaflet's zoom control defaults top-left — filter panel positioned
   top-right (`FilterPanel.tsx`) to avoid overlap.
 
 ## Tests
 
-`make test` → `pipeline/tests/` (pytest) + `web/src/data/*.test.ts` (vitest).
-Both fully offline: verified to pass with `socket.connect` blocked and with
+`make test` → `pipeline/tests/` (pytest) + vitest over `src/**/*.test.ts`
+(`web/vitest.config.ts`, so `src/data` and `src/auth` alike). Both fully
+offline: verified to pass with `socket.connect` blocked and with
 `pipeline/.env` renamed away. Total ~2s, so it's a per-change gate, not a CI
 ritual.
 
@@ -430,6 +466,17 @@ ritual.
   hand-fix is as much a bug as a regression). Also pins that every entry
   satisfies the frontend's `HoursJson` shape, and allowlists the 5 entries with
   a legitimate source-text hours gap so a *new* gap fails.
+- **`textLines.test.ts` is written against the real corpus.** Its inputs are
+  strings lifted from `hours_parsed.json`'s `_raw_hours`/`_raw_holidays` (post
+  `<br>`→space, i.e. the form the panel receives), not invented ones, because
+  the ≥10-character threshold only earns its keep at the boundary —
+  `最終入館16:00` and `土日祝は15:00` are 9 and stay inline,
+  `土曜日・日曜日を除く` is exactly 10 and breaks. Also pins the cases the
+  rules exist for: `・` after `）`
+  suppressing a break where `、` and a digit don't, an unclosed bracket coming
+  back untouched, and ほさか's parenthetical no longer splitting mid-bracket.
+  To find new shapes, grep that file for `[（(]` — 20 of the 125 entries carry
+  parentheses.
 - **`test_db.py` asserts on `UPSERT_SQL` as a string**, because the one
   irreversible failure here is `stamp`/`badge` appearing in that query — a
   データ更新 would wipe collection state the source cannot regenerate. Found by
