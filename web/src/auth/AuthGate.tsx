@@ -28,12 +28,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
   // effects and happened to mask this (the second pass runs after
   // registration completes) - production builds don't get that safety net.
   //
-  // getFreshIdToken (not a plain getIdTokenClaims() read) matters here: after
-  // >1 day away, isAuthenticated above is often true from a stale cached user
-  // even though the cached ID token has long since expired (Auth0 SPA-JS's
-  // mount-time checkSession() only refreshes if a 1-day cookie is still
-  // present - see auth0-spa-js constants.ts DEFAULT_SESSION_CHECK_EXPIRY_DAYS).
-  // getFreshIdToken forces a real refresh-token-backed refresh instead.
+  // isAuthenticated can be true off a cached user whose ID token has already
+  // expired, so hand out getFreshIdToken rather than a getIdTokenClaims() read.
   if (isAuthenticated) {
     registerIdTokenGetter(() => getFreshIdToken({ getAccessTokenSilently, getIdTokenClaims, loginWithRedirect }));
   }
