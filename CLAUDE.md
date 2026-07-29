@@ -2,6 +2,13 @@
 
 Guidance for Claude Code working in this repo.
 
+**Style rule for this file — phrases, not sentences.** Every addition stays
+concise: one fact per clause, connectives dropped, `→`/`;`/`—` in place of "so
+that"/"which means"/"because of this". Keep the *why* (a trap, a regression, a
+load-bearing ordering) — that's the file's value; cut restatement, hedging,
+narration, anything the code or `git log` already says. Wrap at 79 columns,
+never splitting a code span across lines.
+
 ## What this is
 
 Numazu (沼津) "machiaruki" stamp-rally map — Love Live! Sunshine!! stamp
