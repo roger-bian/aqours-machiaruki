@@ -1,8 +1,8 @@
 import { defineConfig } from 'vitest/config'
 
 // Separate from vite.config.ts so the app build config stays untouched. Only the
-// pure logic in src/data is covered here, none of which needs the React plugin,
-// a DOM, or a browser environment.
+// pure logic in src/data and src/auth is covered here, none of which needs the
+// React plugin, a DOM, or a browser environment.
 //
 // `environment: 'node'` is fine even though openStatus.ts leans on Intl with a
 // timeZone and on @holiday-jp/holiday_jp (a CommonJS package): Node 20+ ships
