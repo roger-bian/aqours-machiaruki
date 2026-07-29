@@ -297,10 +297,23 @@ written down. Design goal is *honest* status, not maximal coverage:
   (`loginWithRedirect` with `connection: 'google-oauth2'`, skips
   account-chooser) — an Auth0 Action server-side denies all but the
   owner's email, so a real gate, not just client-side. Once
-  authenticated, `useEffect` calls `registerIdTokenGetter()` so
-  `supabaseRest.ts` gets a fresh ID token per request.
-- **`panel/RefreshDataButton.tsx`**: the "データ更新" button — calls
-  `useAuth0().getIdTokenClaims()` directly, `POST`s the raw ID token to
+  authenticated, `registerIdTokenGetter()` is called **synchronously during
+  render**, not from a `useEffect` — React fires child effects before parent
+  ones, so an effect here races `useLocations`' mount-time fetch and its
+  first request goes out tokenless (401 under RLS). `<StrictMode>`'s
+  double-invoke masks that in dev; prod builds don't.
+- **`auth/freshIdToken.ts`**: the only place an ID token is obtained —
+  `AuthGate` and `RefreshDataButton` both route through it, and nothing
+  should call `getIdTokenClaims()` directly. Auth0 SPA-JS caches the ID
+  token with **no expiry** and `getAccessTokenSilently()` only exchanges
+  once the separately-cached *access* token goes stale (24h default vs the
+  ID token's 10h), so for a 14h window a day both read as fine while every
+  request ships an expired ID token — `401 PGRST303 JWT expired` from
+  Supabase, same rejection from `/pipeline/*`. Hence the explicit `exp`
+  check + `cacheMode: 'off'`, skipped while the token is still valid to
+  keep Auth0 off the hot path. Pinned by `freshIdToken.test.ts`.
+- **`panel/RefreshDataButton.tsx`**: the "データ更新" button — takes its
+  token from `getFreshIdToken()`, `POST`s the raw ID token to
   `VITE_PIPELINE_API_BASE`'s `/pipeline/run` (independently verified, see
   "Auth"). Request returns almost immediately (`'started'`/
   `'already_running'` — backend runs the pipeline after, not inline), so
@@ -519,7 +532,13 @@ enforces the same allowlist independently.
   `Auth0Provider`) avoid Auth0's legacy iframe silent-auth, which
   third-party-cookie blocking (Safari/Chrome) increasingly breaks —
   matters since the app is used in real walking-around-Numazu phone
-  sessions, not just desktop.
+  sessions, not just desktop. `useRefreshTokens` is also what
+  `auth/freshIdToken.ts` needs to re-mint an expired ID token.
+- Every token this app sends anywhere is the **ID** token, but
+  auth0-spa-js's cache only tracks *access* token expiry —
+  `auth/freshIdToken.ts` watches the ID token's own `exp`. Don't fix a 401
+  here by raising the ID token lifetime in the Auth0 dashboard; that only
+  moves the window.
 - `pipeline/`'s CORS (`app/main.py`) scoped to the real frontend
   origin(s), not `allow_origins=['*']` — cross-origin requests now carry
   an `Authorization` header, so a wildcard origin isn't appropriate.
