@@ -1,7 +1,9 @@
+import { useState } from 'react';
 import type { Location, OpenStatus } from '../data/types';
 import { colorForMember } from '../data/memberColors';
 import { RING_COLORS } from '../data/markerColors';
 import { closingTimeFor, openStatusFor } from '../data/openStatus';
+import { toDisplayLines } from '../data/textLines';
 
 const PANEL_STYLE: React.CSSProperties = {
   display: 'block',
@@ -24,44 +26,81 @@ const PANEL_STYLE: React.CSSProperties = {
 
 const URL_PATTERN = /^https?:\/\//i;
 
-function LabeledField({ label, value }: { label: string; value: string }) {
-  const words = value.split(/\s+/).filter(Boolean);
+// full width so the whole row is the tap target, not just the label text -
+// this panel is mostly used one-handed on a phone
+const TOGGLE_STYLE: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  width: '100%',
+  boxSizing: 'border-box',
+  border: 'none',
+  borderRadius: 6,
+  backgroundColor: '#f3f4f6',
+  padding: '6px 10px',
+  font: 'inherit',
+  color: 'inherit',
+  textAlign: 'left',
+  cursor: 'pointer',
+  userSelect: 'none',
+};
+
+/** One field, collapsed until its label is tapped. Each keeps its own state,
+ *  so expanding one leaves the others alone. */
+function CollapsibleField({ label, children }: { label: string; children: React.ReactNode }) {
+  const [expanded, setExpanded] = useState(false);
   return (
-    <p>
-      <b>[{label}]</b>
-      <br />
-      {words.map((word, i) => (
+    <div style={{ margin: '12px 0' }}>
+      <button
+        type="button"
+        onClick={() => setExpanded((prev) => !prev)}
+        aria-expanded={expanded}
+        style={TOGGLE_STYLE}
+      >
+        <b>{label}</b>
+        <span style={{ fontSize: 11 }}>{expanded ? '▲' : '▼'}</span>
+      </button>
+      {/* textAlign overrides the panel's centered default; the 10px gutter
+          matches the header row's padding so both start on the same edge */}
+      {expanded && (
+        <div style={{ marginTop: 4, padding: '0 10px', textAlign: 'left' }}>{children}</div>
+      )}
+    </div>
+  );
+}
+
+/** One line per clause (see data/textLines.ts), bare URLs turned into links. */
+function WordLines({ value }: { value: string }) {
+  return (
+    <>
+      {toDisplayLines(value).map((line, i) => (
         <span key={i}>
-          {URL_PATTERN.test(word) ? (
-            <a href={word} target="_blank" rel="noopener noreferrer">
-              {word}
+          {URL_PATTERN.test(line) ? (
+            <a href={line} target="_blank" rel="noopener noreferrer">
+              {line}
             </a>
           ) : (
-            word
+            line
           )}
           <br />
         </span>
       ))}
-    </p>
+    </>
   );
 }
 
-function AddressField({ label, value }: { label: string; value: string }) {
-  const words = value.split(/\s+/).filter(Boolean);
+function AddressBody({ value }: { value: string }) {
+  // the query keeps the untouched `value` - line breaks are for reading only
   const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
   return (
-    <p>
-      <b>[{label}]</b>
-      <br />
-      <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-        {words.map((word, i) => (
-          <span key={i}>
-            {word}
-            <br />
-          </span>
-        ))}
-      </a>
-    </p>
+    <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
+      {toDisplayLines(value).map((line, i) => (
+        <span key={i}>
+          {line}
+          <br />
+        </span>
+      ))}
+    </a>
   );
 }
 
@@ -98,7 +137,16 @@ function StatusBadge({ location, now }: { location: Location; now: Date }) {
         {label}{closesAt ? ` (${closesAt})` : ''}
       </span>
       {notes.map((note, i) => (
-        <div key={i} style={{ fontSize: 12, color: '#92400e', marginTop: 4 }}>
+        <div
+          key={i}
+          style={{
+            fontSize: 12,
+            color: '#92400e',
+            marginTop: 4,
+            padding: '0 10px',
+            textAlign: 'left',
+          }}
+        >
           ⚠️ {note}
         </div>
       ))}
@@ -184,12 +232,32 @@ export function DetailPanel({
             : {}),
         }}
       >
-        <b>{location.name}</b>
+        <b>
+          {/* breakOnWhitespace off: a space in a name is an ordinary space
+              (`三交イン 沼津駅前`), not a stand-in for a source <br> */}
+          {toDisplayLines(location.name, { breakOnWhitespace: false }).map((line, i) => (
+            <span key={i}>
+              {i > 0 && <br />}
+              {line}
+            </span>
+          ))}
+        </b>
       </h3>
       <StatusBadge location={location} now={now} />
-      <AddressField label="住所" value={location.address} />
-      <LabeledField label="営業時間" value={location.hours} />
-      <LabeledField label="定休日" value={location.holidays} />
+      {/* keyed on the location: tapping a second marker keeps this panel
+          mounted, and the fields must come back collapsed rather than
+          inheriting the previous location's expanded state */}
+      <div key={location.id}>
+        <CollapsibleField label="住所">
+          <AddressBody value={location.address} />
+        </CollapsibleField>
+        <CollapsibleField label="営業時間">
+          <WordLines value={location.hours} />
+        </CollapsibleField>
+        <CollapsibleField label="定休日">
+          <WordLines value={location.holidays} />
+        </CollapsibleField>
+      </div>
     </div>
   );
 }
