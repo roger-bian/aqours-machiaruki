@@ -42,8 +42,17 @@ local uses plain `GRANT`s).
 
 - **`pipeline/`**: pyenv virtualenv `aqours` (`.python-version`), Python 3.10;
   `pip install -r pipeline/requirements.txt`. GDAL needs the native lib first
-  (`sudo apt-get install libgdal-dev gdal-bin`); pinned `GDAL==` must match
-  `gdal-config --version`. Run
+  (`brew install gdal` on macOS, `sudo apt-get install libgdal-dev gdal-bin` on
+  Debian); pinned `GDAL==` must match `gdal-config --version` — a mismatch is a
+  compile error, not a warning (3.12.2 bindings vs libgdal 3.13.2 →
+  `undeclared identifier 'ABS'`). **macOS trap** — the GDAL bindings are the
+  only C++ build here, and an upgraded machine can carry a stale
+  `/Library/Developer/CommandLineTools/usr/include/c++/v1` (a dozen leftover
+  headers) that Apple clang searches *before* the SDK's real libc++ (~190) →
+  every C++ compile dies on `'utility' file not found`. Durable fix: move that
+  directory aside (`sudo mv …/usr/include/c++ …/usr/include/c++.stale`) or
+  reinstall the Command Line Tools. Per-build escape hatch:
+  `CPPFLAGS="-isystem $(xcrun --show-sdk-path)/usr/include/c++/v1"`. Run
   `cd pipeline && uvicorn app.main:app --port 8000`. Trigger needs a valid
   Auth0 ID token (see "Auth"):
   `curl -X POST http://localhost:8000/pipeline/run -H "Authorization: Bearer <token>"`.
@@ -115,16 +124,29 @@ local uses plain `GRANT`s).
    so normalizing first would make its hash depend on cosmetic choices here.
    `holidays` keeps **every** `<br>` line; the old `.split('<br>')[0]` silently
    dropped the `※閉店により、終了しました。` marker on the 8 closed shops.
-3. **`app/images.py`** — `cache_images()` hashes each location's **natural
-   key** (`name|lat|lon`, SHA1) as the Storage object key (`app/storage.py`),
-   *not* the photo URL: Google embeds a per-request token in that URL, so it
+3. **`app/images.py`** — `cache_images()` keys each Storage object
+   (`app/storage.py`) on the location's **`id`** — `locations/<id>`, the same
+   1-based KML position `app/db.py` upserts on, derived independently from the
+   same `records` order; the two must agree or a marker shows another
+   location's photo (pinned in `test_images.py`). Everything in the bucket is
+   either `locations/*` or `_pipeline/*` → an orphan is identifiable by key
+   alone. *Not* the photo URL: Google embeds a per-request token in it, so it
    differs every fetch — keying on it meant the cache never hit and every run
-   silently re-uploaded a duplicate of every photo. `object_exists()` first; on
-   a miss, fetch from Google's `mymaps.usercontent.google.com` CDN
-   (blocks/rate-limits repeats) and `upload_object()` (`x-upsert: true`).
-   Storage *is* the dedupe cache — no local disk, since Render's free-plan
-   container has none and a restart/redeploy would lose it. Frontend reads the
-   `img_url` column (Storage public URL), not a local path.
+   silently re-uploaded a duplicate of every photo. *Not* `sha1(name|lat|lon)`
+   either (the previous scheme): `name` isn't stable (see `app/db.py`) and a
+   cosmetic upstream edit — a `<name>` newline arriving space-joined, a pin
+   nudged metres — moved the key, missed the cache, re-fetched all over again
+   and stranded the old object in the bucket forever. Trade-offs of `id`:
+   nothing invalidates the cache when a photo is genuinely *replaced*
+   upstream → delete that object by hand; a placemark *inserted* mid-KML
+   shifts every later id → mass re-download + mass orphans, but that also
+   renumbers the stamps, so it's a bigger problem than photos.
+   `object_exists()` first; on a miss, fetch from Google's
+   `mymaps.usercontent.google.com` CDN (blocks/rate-limits repeats) and
+   `upload_object()` (`x-upsert: true`). Storage *is* the dedupe cache — no
+   local disk, since Render's free-plan container has none and a
+   restart/redeploy would lose it. Frontend reads the `img_url` column
+   (Storage public URL), not a local path.
 4. **`app/validation.py`** — `validate_structure()` checks a fresh KML against
    the *previous* successful run's KML ("accepted structure" baseline) before
    any DB write: required columns present, every placemark has a name + Point
