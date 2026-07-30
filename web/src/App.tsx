@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
+import type { Map as LeafletMap } from 'leaflet';
 import { MapView } from './map/MapView';
 import { DetailPanel } from './panel/DetailPanel';
 import { FilterPanel } from './panel/FilterPanel';
+import { SearchPanel } from './panel/SearchPanel';
 import { RefreshDataButton } from './panel/RefreshDataButton';
 import { ClockPanel } from './panel/ClockPanel';
 import { Backdrop } from './panel/Backdrop';
@@ -38,6 +40,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [activeFilters, setActiveFilters] = useState<Set<FilterKey>>(loadStoredFilters);
   const [now, setNow] = useState(() => new Date());
+  const [map, setMap] = useState<LeafletMap | null>(null);
 
   // without this the marker rings and the 営業中のみ filter would both freeze
   // at page-load time - the memo below and markerIcon's cache are only
@@ -58,6 +61,13 @@ function App() {
   const visibleLocations = useMemo(
     () => locations.filter((loc) => matchesFilters(loc, activeFilters, now)),
     [locations, activeFilters, now],
+  );
+
+  // search spans every location, so it needs to know which pins the filters
+  // have taken off the map in order to flag those suggestions
+  const visibleIds = useMemo(
+    () => new Set(visibleLocations.map((loc) => loc.id)),
+    [visibleLocations],
   );
 
   const selectedLocation = useMemo(
@@ -86,6 +96,13 @@ function App() {
         onLocate={locate}
         locating={locating}
         now={now}
+        onMapReady={setMap}
+      />
+      <SearchPanel
+        locations={locations}
+        visibleIds={visibleIds}
+        map={map}
+        onSelect={setSelectedId}
       />
       <FilterPanel activeFilters={activeFilters} onToggle={onToggleFilter} />
       <RefreshDataButton />
