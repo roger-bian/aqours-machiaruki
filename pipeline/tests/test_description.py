@@ -23,10 +23,11 @@ def test_all_four_labels():
 
 
 def test_result_always_carries_every_key():
-    """app/main.py indexes all six unconditionally, so a missing label must
+    """app/main.py indexes all seven unconditionally, so a missing label must
     produce an empty value rather than a KeyError."""
     assert set(parse_description('')) == {
-        'member', 'address', 'hours', 'holidays', 'raw_hours', 'raw_holidays',
+        'member', 'address', 'hours', 'holidays',
+        'raw_address', 'raw_hours', 'raw_holidays',
     }
 
 

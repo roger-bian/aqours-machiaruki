@@ -6,6 +6,25 @@ import re
 FIELD_LABELS = ['メンバー／', '住所／', '営業時間／', '定休日／']
 
 
+def normalize_hours(text, br=' '):
+    """The cosmetic pass over 営業時間. `br` is what a source `<br>` becomes: a
+    space for the display column, a newline for `app/display.py`, which needs
+    the author's break positions. One definition so the two can never drift."""
+    return text\
+        .replace('　', '')\
+        .replace('：', ':')\
+        .replace('~', '～').replace(' ～ ', '～')\
+        .replace('<br>', br)
+
+
+def normalize_holidays(text, br=' '):
+    return text.replace('<br>', br).strip() or 'なし'
+
+
+def normalize_address(text, br=' '):
+    return text.replace('<br>', br).strip()
+
+
 def parse_description(text):
     hits = sorted((text.find(label), label) for label in FIELD_LABELS if label in text)
     fields = {}
@@ -20,22 +39,21 @@ def parse_description(text):
     raw_hours = fields.get('営業時間／', '')
     raw_holidays = fields.get('定休日／', '')
 
-    hours = raw_hours\
-        .replace('　', '')\
-        .replace('：', ':')\
-        .replace('~', '～').replace(' ～ ', '～')\
-        .replace('<br>', ' ')
+    raw_address = fields.get('住所／', '')
+
+    hours = normalize_hours(raw_hours)
 
     # every line is kept: this used to be `.split('<br>')[0]`, which silently
     # dropped the `※閉店により、終了しました。` marker on the 8 closed shops and
     # the stamp-location notes on several others
-    holidays = raw_holidays.replace('<br>', ' ').strip() or 'なし'
+    holidays = normalize_holidays(raw_holidays)
 
     return {
         'member': fields.get('メンバー／', ''),
-        'address': fields.get('住所／', '').replace('<br>', ' ').strip(),
+        'address': normalize_address(raw_address),
         'hours': hours,
         'holidays': holidays,
+        'raw_address': raw_address,
         'raw_hours': raw_hours,
         'raw_holidays': raw_holidays,
     }

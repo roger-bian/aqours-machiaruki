@@ -1,0 +1,1832 @@
+{
+ "000fa7dded45e440": {
+  "_field": "address",
+  "_names": ["アニメイト　沼津店"],
+  "_raw": "沼津市大手町5-9-21 マルトモビル1F",
+  "_text": "沼津市大手町5-9-21 マルトモビル1F",
+  "lines": [
+   "沼津市大手町5-9-21",
+   "マルトモビル1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "01ca5ab62606d91a": {
+  "_field": "name",
+  "_names": ["石田茶業（資） 北口支店"],
+  "_raw": "石田茶業（資） 北口支店",
+  "_text": "石田茶業 (資) 北口支店",
+  "lines": [
+   "石田茶業 (資)",
+   "北口支店"
+  ],
+  "confidence": "verified"
+ },
+ "02396bfb6e866a52": {
+  "_field": "holidays",
+  "_names": ["桃中軒"],
+  "_raw": "なし<br>http://www.tochuken.co.jp",
+  "_text": "なし\nhttp://www.tochuken.co.jp",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "http://www.tochuken.co.jp"
+  ],
+  "confidence": "verified"
+ },
+ "02eeaee432a5e7e2": {
+  "_field": "address",
+  "_names": ["弥次喜多 平町店"],
+  "_raw": "沼津市平町 18-11",
+  "_text": "沼津市平町 18-11",
+  "lines": [
+   "沼津市平町18-11"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "037d8f0ba4334fea": {
+  "_field": "name",
+  "_names": ["旅館　浜の家"],
+  "_raw": "旅館　浜の家",
+  "_text": "旅館 浜の家",
+  "lines": [
+   "旅館",
+   "浜の家"
+  ],
+  "confidence": "verified"
+ },
+ "03b07b094de5dde7": {
+  "_field": "address",
+  "_names": ["古安"],
+  "_raw": "沼津市本町40　1F精肉店",
+  "_text": "沼津市本町40 1F精肉店",
+  "lines": [
+   "沼津市本町40",
+   "1F精肉店"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "040a5c6d879784ff": {
+  "_field": "address",
+  "_names": ["モスバーガー 富士急沼津店"],
+  "_raw": "沼津市大手町3丁目2-1 富士急百貨店1階",
+  "_text": "沼津市大手町3丁目2-1 富士急百貨店1階",
+  "lines": [
+   "沼津市大手町3丁目2-1",
+   "富士急百貨店1階"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "05c153cc5677cef5": {
+  "_field": "holidays",
+  "_names": ["マルサン書店"],
+  "_raw": "元旦<br> ※閉店により、終了しました。",
+  "_text": "元旦\n※閉店により、終了しました。",
+  "lines": [
+   "元旦"
+  ],
+  "extra": [
+   "※閉店により、終了しました。"
+  ],
+  "confidence": "verified"
+ },
+ "080c63909e72f622": {
+  "_field": "holidays",
+  "_names": ["明治茶館"],
+  "_raw": "月～金<br>http://meijichakan.html.xdomain.jp/",
+  "_text": "月～金\nhttp://meijichakan.html.xdomain.jp/",
+  "lines": [
+   "月～金"
+  ],
+  "extra": [
+   "http://meijichakan.html.xdomain.jp/"
+  ],
+  "confidence": "verified"
+ },
+ "0916021f0f24f7e4": {
+  "_field": "hours",
+  "_names": ["魚がし鮨 流れ鮨沼津店"],
+  "_raw": "平日 11:00～21:30<br>土日・祝日 11:00～22:00",
+  "_text": "平日 11:00～21:30\n土日・祝日 11:00～22:00",
+  "lines": [
+   "平日 11:00～21:30",
+   "土日・祝日 11:00～22:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "093f4da33973ec66": {
+  "_field": "holidays",
+  "_names": ["とりう"],
+  "_raw": "木曜日、第1・3水曜日<br>駐車場／なし<br>https://numazu-toriu.com/",
+  "_text": "木曜日、第1・3水曜日\n駐車場／なし\nhttps://numazu-toriu.com/",
+  "lines": [
+   "木曜日",
+   "第1・3水曜日"
+  ],
+  "extra": [
+   "駐車場／なし",
+   "https://numazu-toriu.com/"
+  ],
+  "confidence": "verified"
+ },
+ "09c6c59eae9c1193": {
+  "_field": "name",
+  "_names": ["THE 3RD PLANET BiVi沼津店"],
+  "_raw": "THE 3RD PLANET BiVi沼津店",
+  "_text": "THE 3RD PLANET BiVi沼津店",
+  "lines": [
+   "THE 3RD PLANET",
+   "BiVi沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "0bcd26c1a316bedb": {
+  "_field": "address",
+  "_names": ["カルクル沼津店"],
+  "_raw": "沼津市大手町5-4-3 川村ビル1F",
+  "_text": "沼津市大手町5-4-3 川村ビル1F",
+  "lines": [
+   "沼津市大手町5-4-3",
+   "川村ビル1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "0da2d757022a3a77": {
+  "_field": "holidays",
+  "_names": ["伊豆箱根タクシー"],
+  "_raw": "なし<br>http://www.izuhakone.co.jp/railway/station/sunzu09.html/",
+  "_text": "なし\nhttp://www.izuhakone.co.jp/railway/station/sunzu09.html/",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "http://www.izuhakone.co.jp/railway/station/sunzu09.html/"
+  ],
+  "confidence": "verified"
+ },
+ "0ec38d111311ec62": {
+  "_field": "address",
+  "_names": ["アベリー"],
+  "_raw": "沼津市大手町5丁目7番5号<br>仲見世セゾンビル1階E号室",
+  "_text": "沼津市大手町5丁目7番5号\n仲見世セゾンビル1階E号室",
+  "lines": [
+   "沼津市大手町5丁目7番5号",
+   "仲見世セゾンビル1階E号室"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "147cc244763032b1": {
+  "_field": "holidays",
+  "_names": ["沼津アーケード名店街"],
+  "_raw": "土曜・日曜・祝日<br> ※スタンプは、NPO法人SIDAMに設置してあります。",
+  "_text": "土曜・日曜・祝日\n※スタンプは、NPO法人SIDAMに設置してあります。",
+  "lines": [
+   "土曜・日曜・祝日"
+  ],
+  "extra": [
+   "※スタンプは、NPO法人SIDAMに設置してあります。"
+  ],
+  "confidence": "verified"
+ },
+ "1500bf4141ef0739": {
+  "_field": "holidays",
+  "_names": ["すしの磯丸 沼津みなと店"],
+  "_raw": "不定休 <br>※閉店により、スタンプ及び缶バッジの販売は平成30年5月31日をもって終了しました。",
+  "_text": "不定休\n※閉店により、スタンプ及び缶バッジの販売は平成30年5月31日をもって終了しました。",
+  "lines": [
+   "不定休"
+  ],
+  "extra": [
+   "※閉店により、スタンプ及び缶バッジの販売は平成30年5月31日をもって終了しました。"
+  ],
+  "confidence": "verified"
+ },
+ "18ec4d4dedafc9fe": {
+  "_field": "name",
+  "_names": ["マルニ茶業　沼津みなと新鮮館"],
+  "_raw": "マルニ茶業　沼津みなと新鮮館",
+  "_text": "マルニ茶業 沼津みなと新鮮館",
+  "lines": [
+   "マルニ茶業",
+   "沼津みなと新鮮館"
+  ],
+  "confidence": "verified"
+ },
+ "1ab15baa9ad80840": {
+  "_field": "hours",
+  "_names": ["THE 3RD PLANET BiVi沼津店"],
+  "_raw": "平日 10:00～24:00<br>土日祝 9:00～24:00",
+  "_text": "平日 10:00～24:00\n土日祝 9:00～24:00",
+  "lines": [
+   "平日 10:00～24:00",
+   "土日祝 9:00～24:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "1b07b2bae2042218": {
+  "_field": "hours",
+  "_names": ["東海バス沼津営業所"],
+  "_raw": "平日　9:30～18:00<br>土曜日　9:30～17:00",
+  "_text": "平日9:30～18:00\n土曜日9:30～17:00",
+  "lines": [
+   "平日9:30～18:00",
+   "土曜日9:30～17:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "1b3b89d092f4ed2c": {
+  "_field": "name",
+  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_raw": "ラブライブ！サンシャイン!!\nプレミアムショップ",
+  "_text": "ラブライブ！サンシャイン!! プレミアムショップ",
+  "lines": [
+   "ラブライブ！サンシャイン!!",
+   "プレミアムショップ"
+  ],
+  "confidence": "verified"
+ },
+ "1beaca16a530ce8c": {
+  "_field": "name",
+  "_names": ["JAふじ伊豆 緑茶館ぬまづ"],
+  "_raw": "JAふじ伊豆 緑茶館ぬまづ",
+  "_text": "JAふじ伊豆 緑茶館ぬまづ",
+  "lines": [
+   "JAふじ伊豆",
+   "緑茶館ぬまづ"
+  ],
+  "confidence": "verified"
+ },
+ "1f8380c6fffe67d7": {
+  "_field": "name",
+  "_names": ["グランマ シーサイド店"],
+  "_raw": "グランマ シーサイド店",
+  "_text": "グランマ シーサイド店",
+  "lines": [
+   "グランマ",
+   "シーサイド店"
+  ],
+  "confidence": "verified"
+ },
+ "217135b811886b9a": {
+  "_field": "holidays",
+  "_names": ["石窯パン工房 しゃんぴによん 添地店"],
+  "_raw": "日、祝日<br>https://numazu.yoshimoto.co.jp",
+  "_text": "日、祝日\nhttps://numazu.yoshimoto.co.jp",
+  "lines": [
+   "日",
+   "祝日"
+  ],
+  "extra": [
+   "https://numazu.yoshimoto.co.jp"
+  ],
+  "confidence": "verified"
+ },
+ "22e9c7c934d19637": {
+  "_field": "name",
+  "_names": ["駿河の味　どんむす"],
+  "_raw": "駿河の味　どんむす",
+  "_text": "駿河の味 どんむす",
+  "lines": [
+   "駿河の味",
+   "どんむす"
+  ],
+  "confidence": "verified"
+ },
+ "231a11e2c0e1f212": {
+  "_field": "holidays",
+  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_raw": "なし<br>https://premiumstore.jp/RealShop/lovelive_BiVinumazu/",
+  "_text": "なし\nhttps://premiumstore.jp/RealShop/lovelive_BiVinumazu/",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "https://premiumstore.jp/RealShop/lovelive_BiVinumazu/"
+  ],
+  "confidence": "verified"
+ },
+ "2656666a9621723b": {
+  "_field": "holidays",
+  "_names": ["沼津駅ビル アントレ"],
+  "_raw": "なし<br>※スタンプは1階 水口園茶店に設置してあります。",
+  "_text": "なし\n※スタンプは1階 水口園茶店に設置してあります。",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "※スタンプは1階 水口園茶店に設置してあります。"
+  ],
+  "confidence": "verified"
+ },
+ "27f5664f4ba01bc0": {
+  "_field": "hours",
+  "_names": ["モスバーガーららぽーと沼津店"],
+  "_raw": "平日（※祝日を除く）10:00 ~ 20:00<br> 土日祝日10:00 ~ 21:00<br>※ご来館の際には最新の営業時間をご確認のうえお越しください。<br>https://www.mos.jp/shop/detail/?shop_cd=05290",
+  "_text": "平日（※祝日を除く）10:00～20:00\n土日祝日10:00～21:00\n※ご来館の際には最新の営業時間をご確認のうえお越しください。\nhttps://www.mos.jp/shop/detail/?shop_cd=05290",
+  "lines": [
+   "平日（※祝日を除く）10:00～20:00",
+   "土日祝日10:00～21:00"
+  ],
+  "extra": [
+   "※ご来館の際には最新の営業時間をご確認のうえお越しください。",
+   "https://www.mos.jp/shop/detail/?shop_cd=05290"
+  ],
+  "confidence": "verified"
+ },
+ "28d7031d6a26eb23": {
+  "_field": "address",
+  "_names": ["沼津ラクーンよしもと劇場"],
+  "_raw": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階",
+  "_text": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階",
+  "lines": [
+   "沼津市大手町3丁目4番1号",
+   "沼津RAKUUN 4階"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "2a2859d9464d2d5f": {
+  "_field": "name",
+  "_names": ["Coffee 桜"],
+  "_raw": "Coffee 桜",
+  "_text": "Coffee 桜",
+  "lines": [
+   "Coffee",
+   "桜"
+  ],
+  "confidence": "verified"
+ },
+ "2aab1682da4bb238": {
+  "_field": "name",
+  "_names": ["漁師寿し 網元 武田丸"],
+  "_raw": "漁師寿し 網元 武田丸",
+  "_text": "漁師寿し 網元 武田丸",
+  "lines": [
+   "漁師寿し",
+   "網元 武田丸"
+  ],
+  "confidence": "verified"
+ },
+ "2ce21aba7d14a815": {
+  "_field": "holidays",
+  "_names": ["伊豆箱根バス"],
+  "_raw": "木・日・祝日<br>https://www.izuhakone.co.jp/bus/index.html",
+  "_text": "木・日・祝日\nhttps://www.izuhakone.co.jp/bus/index.html",
+  "lines": [
+   "木・日・祝日"
+  ],
+  "extra": [
+   "https://www.izuhakone.co.jp/bus/index.html"
+  ],
+  "confidence": "verified"
+ },
+ "2d136f265454d6ec": {
+  "_field": "hours",
+  "_names": ["ハイクリエイト"],
+  "_raw": "平日10:00～18:45、土日祝10:00～18:00<br>https://twitter.com/hicreate1",
+  "_text": "平日10:00～18:45、土日祝10:00～18:00\nhttps://twitter.com/hicreate1",
+  "lines": [
+   "平日10:00～18:45",
+   "土日祝10:00～18:00"
+  ],
+  "extra": [
+   "https://twitter.com/hicreate1"
+  ],
+  "confidence": "verified"
+ },
+ "2dd7b4dd09ae5157": {
+  "_field": "hours",
+  "_names": ["つじ写真館"],
+  "_raw": "平日　9:30～19:00<br> 日祝　9:30～18:00",
+  "_text": "平日9:30～19:00\n日祝9:30～18:00",
+  "lines": [
+   "平日9:30～19:00",
+   "日祝9:30～18:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "2f20cd6b25079131": {
+  "_field": "name",
+  "_names": ["内浦漁協直営 いけすや"],
+  "_raw": "内浦漁協直営 いけすや",
+  "_text": "内浦漁協直営 いけすや",
+  "lines": [
+   "内浦漁協直営",
+   "いけすや"
+  ],
+  "confidence": "verified"
+ },
+ "2f228c99bd112871": {
+  "_field": "hours",
+  "_names": ["しーらかんすCafé"],
+  "_raw": "10:00～17:00（L.O.16:30）",
+  "_text": "10:00～17:00（L.O.16:30）",
+  "lines": [
+   "10:00～17:00（L.O.16:30）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "3351cfaa8e59fec6": {
+  "_field": "address",
+  "_names": ["ふみ野"],
+  "_raw": "沼津市千本港町109 ダイレイビル1F",
+  "_text": "沼津市千本港町109 ダイレイビル1F",
+  "lines": [
+   "沼津市千本港町109",
+   "ダイレイビル1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "35ddd3b394874f4a": {
+  "_field": "name",
+  "_names": ["赤から　沼津店"],
+  "_raw": "赤から　沼津店",
+  "_text": "赤から 沼津店",
+  "lines": [
+   "赤から",
+   "沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "35de37867a97298f": {
+  "_field": "name",
+  "_names": ["㈱千鳥観光汽船"],
+  "_raw": "㈱千鳥観光汽船",
+  "_text": "(株) 千鳥観光汽船",
+  "lines": [
+   "(株) 千鳥観光汽船"
+  ],
+  "confidence": "verified"
+ },
+ "373cb0a4267c5f9c": {
+  "_field": "hours",
+  "_names": ["アニメイト　沼津店"],
+  "_raw": "月～金　11:00～19:00<br>土日祝　10:00～18:00",
+  "_text": "月～金11:00～19:00\n土日祝10:00～18:00",
+  "lines": [
+   "月～金11:00～19:00",
+   "土日祝10:00～18:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "38cbe3f562cce903": {
+  "_field": "name",
+  "_names": ["駿陽荘 やま弥"],
+  "_raw": "駿陽荘 やま弥",
+  "_text": "駿陽荘 やま弥",
+  "lines": [
+   "駿陽荘",
+   "やま弥"
+  ],
+  "confidence": "verified"
+ },
+ "3947ad1da205d95e": {
+  "_field": "address",
+  "_names": ["第一生命保険   沼津支社"],
+  "_raw": "沼津市大手町2-4-1 １階",
+  "_text": "沼津市大手町2-4-1 １階",
+  "lines": [
+   "沼津市大手町2-4-1",
+   "１階"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "399e83e627fc9a41": {
+  "_field": "hours",
+  "_names": ["サスナカ長澤水産"],
+  "_raw": "9:00～13:00、17:00～19:00",
+  "_text": "9:00～13:00、17:00～19:00",
+  "lines": [
+   "9:00～13:00",
+   "17:00～19:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "39f06ad9263b989f": {
+  "_field": "hours",
+  "_names": ["鮨庵さいとう 本店"],
+  "_raw": "11:30～14:00(土日祝は15:00)<br>17:00～21:00",
+  "_text": "11:30～14:00(土日祝は15:00)\n17:00～21:00",
+  "lines": [
+   "11:30～14:00(土日祝は15:00)",
+   "17:00～21:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "3dd6fb21a44e4d04": {
+  "_field": "hours",
+  "_names": ["おさかな食堂やまや"],
+  "_raw": "11:00～15:00、17:00～19:30<br>※予約により変更あり",
+  "_text": "11:00～15:00、17:00～19:30\n※予約により変更あり",
+  "lines": [
+   "11:00～15:00",
+   "17:00～19:30",
+   "※予約により変更あり"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "424e908ad1816463": {
+  "_field": "name",
+  "_names": ["鮨庵さいとう 本店"],
+  "_raw": "鮨庵さいとう 本店",
+  "_text": "鮨庵さいとう 本店",
+  "lines": [
+   "鮨庵さいとう",
+   "本店"
+  ],
+  "confidence": "verified"
+ },
+ "42ad2a10f6fdd210": {
+  "_field": "name",
+  "_names": ["セブンイレブン 伊豆・三津シーパラダイス前店"],
+  "_raw": "セブンイレブン 伊豆・三津シーパラダイス前店",
+  "_text": "セブンイレブン 伊豆・三津シーパラダイス前店",
+  "lines": [
+   "セブンイレブン",
+   "伊豆・三津シーパラダイス前店"
+  ],
+  "confidence": "verified"
+ },
+ "433df1f8b90eb8a0": {
+  "_field": "holidays",
+  "_names": ["尾鷲酒店"],
+  "_raw": "不定休（年末年始休みあり）",
+  "_text": "不定休（年末年始休みあり）",
+  "lines": [
+   "不定休（年末年始休みあり）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "43b185b553d3776a": {
+  "_field": "name",
+  "_names": ["すしの磯丸 沼津みなと店"],
+  "_raw": "すしの磯丸 沼津みなと店",
+  "_text": "すしの磯丸 沼津みなと店",
+  "lines": [
+   "すしの磯丸",
+   "沼津みなと店"
+  ],
+  "confidence": "verified"
+ },
+ "43ddd0f8ccd768ab": {
+  "_field": "hours",
+  "_names": ["とりう"],
+  "_raw": "昼11:30～14:30(L.O.) 夜17:30～20:00(L.O.)<br>※土・日・祝日は、昼11:30～14:30(L.O.) 夜17:00～19:30(L.O.)",
+  "_text": "昼11:30～14:30(L.O.) 夜17:30～20:00(L.O.)\n※土・日・祝日は、昼11:30～14:30(L.O.) 夜17:00～19:30(L.O.)",
+  "lines": [
+   "昼11:30～14:30(L.O.)",
+   "夜17:30～20:00(L.O.)",
+   "※土・日・祝日は",
+   "昼11:30～14:30(L.O.)",
+   "夜17:00～19:30(L.O.)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "44e6368bdbc5dbdd": {
+  "_field": "hours",
+  "_names": ["石窯パン工房 しゃんぴによん 添地店"],
+  "_raw": "月～水 8:00～17:30<br>木～土 7:00～17:30",
+  "_text": "月～水 8:00～17:30\n木～土 7:00～17:30",
+  "lines": [
+   "月～水 8:00～17:30",
+   "木～土 7:00～17:30"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "44f3bcda63f31d8e": {
+  "_field": "holidays",
+  "_names": ["シネマサンシャイン沼津"],
+  "_raw": "なし<br>https://www.cinemasunshine.co.jp/theater/numazu/",
+  "_text": "なし\nhttps://www.cinemasunshine.co.jp/theater/numazu/",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "https://www.cinemasunshine.co.jp/theater/numazu/"
+  ],
+  "confidence": "verified"
+ },
+ "46d7f321696015f7": {
+  "_field": "holidays",
+  "_names": ["ヤマカ水産直売所"],
+  "_raw": "日曜日・祝日・水曜不定休<br>http://www.yamaka-suisan.co.jp/",
+  "_text": "日曜日・祝日・水曜不定休\nhttp://www.yamaka-suisan.co.jp/",
+  "lines": [
+   "日曜日・祝日・水曜不定休"
+  ],
+  "extra": [
+   "http://www.yamaka-suisan.co.jp/"
+  ],
+  "confidence": "verified"
+ },
+ "47ebcb7f0ed714bf": {
+  "_field": "name",
+  "_names": ["（株）赤池カーコミュニケーツシステムズ"],
+  "_raw": "（株）赤池カーコミュニケーツシステムズ",
+  "_text": "(株) 赤池カーコミュニケーツシステムズ",
+  "lines": [
+   "(株) 赤池カーコミュニケーツシステムズ"
+  ],
+  "confidence": "verified"
+ },
+ "4959994bb92aedf1": {
+  "_field": "hours",
+  "_names": ["ほさか"],
+  "_raw": "10:00～19:00<br>（6月～9月 10:00～20:00）",
+  "_text": "10:00～19:00\n（6月～9月 10:00～20:00）",
+  "lines": [
+   "10:00～19:00",
+   "（6月～9月 10:00～20:00）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "49a35664ebfc277a": {
+  "_field": "hours",
+  "_names": ["淡島ホテル", "あわしまマリンパーク"],
+  "_raw": "9:30～17:00（最終入園15:30）",
+  "_text": "9:30～17:00（最終入園15:30）",
+  "lines": [
+   "9:30～17:00（最終入園15:30）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "4aa71cfca101afe8": {
+  "_field": "name",
+  "_names": ["JEWELRY＆WATCH 市川"],
+  "_raw": "JEWELRY＆WATCH 市川",
+  "_text": "JEWELRY & WATCH 市川",
+  "lines": [
+   "JEWELRY & WATCH",
+   "市川"
+  ],
+  "confidence": "verified"
+ },
+ "4b5b1a946126ce5a": {
+  "_field": "address",
+  "_names": ["魚がし鮨 流れ鮨沼津店"],
+  "_raw": "沼津市大手町1-1-6 イーラde 3F",
+  "_text": "沼津市大手町1-1-6 イーラde 3F",
+  "lines": [
+   "沼津市大手町1-1-6",
+   "イーラde 3F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "4cf85beed95ef0bb": {
+  "_field": "name",
+  "_names": ["ザ・ブルーウォーター（ＴＨＥ・ＢＬＵＥＷＡＴＥＲ）"],
+  "_raw": "ザ・ブルーウォーター（ＴＨＥ・ＢＬＵＥＷＡＴＥＲ）",
+  "_text": "ザ・ブルーウォーター (THE・BLUEWATER)",
+  "lines": [
+   "ザ・ブルーウォーター",
+   "(THE・BLUEWATER)"
+  ],
+  "confidence": "verified"
+ },
+ "4d075920da7c57a9": {
+  "_field": "address",
+  "_names": ["沼津市歴史民俗資料館"],
+  "_raw": "沼津市下香貫島郷2802-1（沼津御用邸記念公園内）",
+  "_text": "沼津市下香貫島郷2802-1（沼津御用邸記念公園内）",
+  "lines": [
+   "沼津市下香貫島郷2802-1",
+   "（沼津御用邸記念公園内）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "4dcfafed62dc6a94": {
+  "_field": "holidays",
+  "_names": ["肉バル＆ワイン ベルサイユのバル"],
+  "_raw": "不定休<br>https://r.gnavi.co.jp/skzgd1d70000",
+  "_text": "不定休\nhttps://r.gnavi.co.jp/skzgd1d70000",
+  "lines": [
+   "不定休"
+  ],
+  "extra": [
+   "https://r.gnavi.co.jp/skzgd1d70000"
+  ],
+  "confidence": "verified"
+ },
+ "4ed0c3c91793cd27": {
+  "_field": "hours",
+  "_names": ["第一生命保険   沼津支社"],
+  "_raw": "月～土 9:00～19:00、<br>日・祝日 9:00～17:00<br>ビル休館日／ 年末年始、点検日",
+  "_text": "月～土 9:00～19:00、\n日・祝日 9:00～17:00\nビル休館日／ 年末年始、点検日",
+  "lines": [
+   "月～土 9:00～19:00",
+   "日・祝日 9:00～17:00",
+   "ビル休館日／年末年始、点検日"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "4efa1ef7aad26338": {
+  "_field": "name",
+  "_names": ["弥次喜多 平町店"],
+  "_raw": "弥次喜多 平町店",
+  "_text": "弥次喜多 平町店",
+  "lines": [
+   "弥次喜多",
+   "平町店"
+  ],
+  "confidence": "verified"
+ },
+ "5288961014d316a5": {
+  "_field": "name",
+  "_names": ["食堂・ひもの販売　あじや"],
+  "_raw": "食堂・ひもの販売　あじや",
+  "_text": "食堂・ひもの販売 あじや",
+  "lines": [
+   "食堂・ひもの販売",
+   "あじや"
+  ],
+  "confidence": "verified"
+ },
+ "532e591efd0444aa": {
+  "_field": "hours",
+  "_names": ["ゲーマーズ沼津店"],
+  "_raw": "平日 11:00～20:00<br>土日祝 10:0～20:00",
+  "_text": "平日 11:00～20:00\n土日祝 10:0～20:00",
+  "lines": [
+   "平日 11:00～20:00",
+   "土日祝 10:0～20:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "53989a90efc36136": {
+  "_field": "name",
+  "_names": ["カラオケ ラジオシティー 沼津駅北店"],
+  "_raw": "カラオケ ラジオシティー 沼津駅北店",
+  "_text": "カラオケ ラジオシティー 沼津駅北店",
+  "lines": [
+   "カラオケ",
+   "ラジオシティー",
+   "沼津駅北店"
+  ],
+  "confidence": "verified"
+ },
+ "540df8987316bb81": {
+  "_field": "holidays",
+  "_names": ["焼きそば ゆきちゃん"],
+  "_raw": "月曜日（月曜が祝日の場合、火曜日休み）",
+  "_text": "月曜日（月曜が祝日の場合、火曜日休み）",
+  "lines": [
+   "月曜日（月曜が祝日の場合、火曜日休み）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "549390092bfe1d49": {
+  "_field": "name",
+  "_names": ["旅館　はまゆう荘"],
+  "_raw": "旅館　はまゆう荘",
+  "_text": "旅館 はまゆう荘",
+  "lines": [
+   "旅館",
+   "はまゆう荘"
+  ],
+  "confidence": "verified"
+ },
+ "55921cc653604432": {
+  "_field": "address",
+  "_names": ["ドールハウスKIMURA"],
+  "_raw": "沼津市大手町 5-7-14",
+  "_text": "沼津市大手町 5-7-14",
+  "lines": [
+   "沼津市大手町5-7-14"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "55b2e9432456c195": {
+  "_field": "holidays",
+  "_names": ["渡辺商店"],
+  "_raw": "水曜日<br>https://watanabe-himono.jimdofree.com/",
+  "_text": "水曜日\nhttps://watanabe-himono.jimdofree.com/",
+  "lines": [
+   "水曜日"
+  ],
+  "extra": [
+   "https://watanabe-himono.jimdofree.com/"
+  ],
+  "confidence": "verified"
+ },
+ "55e40d28bc97884d": {
+  "_field": "address",
+  "_names": ["ハイクリエイト"],
+  "_raw": "沼津市大手町 5-7-5 つるかめ仲見世ビル 1F",
+  "_text": "沼津市大手町 5-7-5 つるかめ仲見世ビル 1F",
+  "lines": [
+   "沼津市大手町5-7-5",
+   "つるかめ仲見世ビル 1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "560a38f17d49640c": {
+  "_field": "name",
+  "_names": ["総合事務用品（株）フヂイ"],
+  "_raw": "総合事務用品（株）フヂイ",
+  "_text": "総合事務用品 (株) フヂイ",
+  "lines": [
+   "総合事務用品",
+   "(株) フヂイ"
+  ],
+  "confidence": "verified"
+ },
+ "565ac8be2d33ea76": {
+  "_field": "hours",
+  "_names": ["JEWELRY＆WATCH 市川"],
+  "_raw": "平日10:00～18:30<br>　　　　　日・祝日10:00～18:00",
+  "_text": "平日10:00～18:30\n日・祝日10:00～18:00",
+  "lines": [
+   "平日10:00～18:30",
+   "日・祝日10:00～18:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "566d046a816f2674": {
+  "_field": "holidays",
+  "_names": ["杉長水産"],
+  "_raw": "毎週火・土曜日及び、祭日の前日<br>※閉店により、終了しました。",
+  "_text": "毎週火・土曜日及び、祭日の前日\n※閉店により、終了しました。",
+  "lines": [
+   "毎週火・土曜日及び",
+   "祭日の前日"
+  ],
+  "extra": [
+   "※閉店により、終了しました。"
+  ],
+  "confidence": "verified"
+ },
+ "571d878ac7bec65a": {
+  "_field": "holidays",
+  "_names": ["遠藤新聞舗"],
+  "_raw": "土曜日・日曜日・祝日<br>※スタンプは建物1階に設置してあります。",
+  "_text": "土曜日・日曜日・祝日\n※スタンプは建物1階に設置してあります。",
+  "lines": [
+   "土曜日・日曜日・祝日"
+  ],
+  "extra": [
+   "※スタンプは建物1階に設置してあります。"
+  ],
+  "confidence": "verified"
+ },
+ "5b1bb1e44e19c19b": {
+  "_field": "address",
+  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_raw": "静岡県 沼津市 千本港町 101 沼津みなと新鮮館前(スタンプは縁日コーナーに設置しています)",
+  "_text": "静岡県 沼津市 千本港町 101 沼津みなと新鮮館前(スタンプは縁日コーナーに設置しています)",
+  "lines": [
+   "静岡県沼津市千本港町101",
+   "沼津みなと新鮮館前"
+  ],
+  "extra": [
+   "(スタンプは縁日コーナーに設置しています)"
+  ],
+  "confidence": "verified"
+ },
+ "5b846f93aa61ea6a": {
+  "_field": "holidays",
+  "_names": ["開運処　むさしや"],
+  "_raw": "日曜日<br>https://www.musashiya.shop/",
+  "_text": "日曜日\nhttps://www.musashiya.shop/",
+  "lines": [
+   "日曜日"
+  ],
+  "extra": [
+   "https://www.musashiya.shop/"
+  ],
+  "confidence": "verified"
+ },
+ "61647150d32ab233": {
+  "_field": "address",
+  "_names": ["食堂・ひもの販売　あじや", "マルニ茶業　沼津みなと新鮮館", "しーらかんすCafé"],
+  "_raw": "沼津市千本港町128-1　沼津みなと新鮮館内",
+  "_text": "沼津市千本港町128-1 沼津みなと新鮮館内",
+  "lines": [
+   "沼津市千本港町128-1",
+   "沼津みなと新鮮館内"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "621c2a94af8968f2": {
+  "_field": "holidays",
+  "_names": ["三交イン 沼津駅前"],
+  "_raw": "なし<br>https://www.sanco-inn.co.jp/numazu/",
+  "_text": "なし\nhttps://www.sanco-inn.co.jp/numazu/",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "https://www.sanco-inn.co.jp/numazu/"
+  ],
+  "confidence": "verified"
+ },
+ "6248bfb619a8c44a": {
+  "_field": "holidays",
+  "_names": ["びゅうお"],
+  "_raw": "なし(施設メンテナンスによる休館あり)<br>※スタンプは北側1階チケット販売所に設置してあります。",
+  "_text": "なし(施設メンテナンスによる休館あり)\n※スタンプは北側1階チケット販売所に設置してあります。",
+  "lines": [
+   "なし(施設メンテナンスによる休館あり)"
+  ],
+  "extra": [
+   "※スタンプは北側1階チケット販売所に設置してあります。"
+  ],
+  "confidence": "verified"
+ },
+ "649f0b3285efba98": {
+  "_field": "hours",
+  "_names": ["HAMBURGER & CAFE 沼津バーガー"],
+  "_raw": "月水木金 9:00～18:00<br>火曜日 9:00～17:00<br>土日祝 9:00～20:00",
+  "_text": "月水木金 9:00～18:00\n火曜日 9:00～17:00\n土日祝 9:00～20:00",
+  "lines": [
+   "月水木金 9:00～18:00",
+   "火曜日 9:00～17:00",
+   "土日祝 9:00～20:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "65f741a4b6d72a1f": {
+  "_field": "name",
+  "_names": ["TONY'S HONOLULU"],
+  "_raw": "TONY'S HONOLULU",
+  "_text": "TONY'S HONOLULU",
+  "lines": [
+   "TONY'S HONOLULU"
+  ],
+  "confidence": "verified"
+ },
+ "66774214e003f5ff": {
+  "_field": "hours",
+  "_names": ["オーシャン ビュー フジミ"],
+  "_raw": "平日 10:30～14:30<br>土日祝 10:00～14:30",
+  "_text": "平日 10:30～14:30\n土日祝 10:00～14:30",
+  "lines": [
+   "平日 10:30～14:30",
+   "土日祝 10:00～14:30"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "6abcb37f6cf0e017": {
+  "_field": "address",
+  "_names": ["富士急シティバス"],
+  "_raw": "沼津市大手町3-2-1 沼津富士急ビル1F (スタンプは富士急シティバス<br>沼津駅南口窓口に設置しています)",
+  "_text": "沼津市大手町3-2-1 沼津富士急ビル1F (スタンプは富士急シティバス\n沼津駅南口窓口に設置しています)",
+  "lines": [
+   "沼津市大手町3-2-1",
+   "沼津富士急ビル1F"
+  ],
+  "extra": [
+   "(スタンプは富士急シティバス 沼津駅南口窓口に設置しています)"
+  ],
+  "confidence": "verified"
+ },
+ "6e1f343b0bc20370": {
+  "_field": "name",
+  "_names": ["NPO法人 沼津観光協会"],
+  "_raw": "NPO法人 沼津観光協会",
+  "_text": "NPO法人 沼津観光協会",
+  "lines": [
+   "NPO法人 沼津観光協会"
+  ],
+  "confidence": "verified"
+ },
+ "72de2f2cbccb1a24": {
+  "_field": "address",
+  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_raw": "沼津市大手町1-1-5　BiVi沼津 1F",
+  "_text": "沼津市大手町1-1-5 BiVi沼津 1F",
+  "lines": [
+   "沼津市大手町1-1-5",
+   "BiVi沼津 1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "732f78940bf82b08": {
+  "_field": "hours",
+  "_names": ["富士急シティバス"],
+  "_raw": "平日10：00～18：00 土曜日10：00～17：00",
+  "_text": "平日10:00～18:00 土曜日10:00～17:00",
+  "lines": [
+   "平日10:00～18:00",
+   "土曜日10:00～17:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "75418756cb4aa133": {
+  "_field": "name",
+  "_names": ["（有）大田呉服店"],
+  "_raw": "（有）大田呉服店",
+  "_text": "(有) 大田呉服店",
+  "lines": [
+   "(有) 大田呉服店"
+  ],
+  "confidence": "verified"
+ },
+ "75d3b57beede3829": {
+  "_field": "holidays",
+  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_raw": "なし<br>https://www.senbonichi-kamomemaru.jp/",
+  "_text": "なし\nhttps://www.senbonichi-kamomemaru.jp/",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "https://www.senbonichi-kamomemaru.jp/"
+  ],
+  "confidence": "verified"
+ },
+ "782658ffad73d975": {
+  "_field": "name",
+  "_names": ["OH!MOS（農業組合法人おもす）"],
+  "_raw": "OH!MOS（農業組合法人おもす）",
+  "_text": "OH!MOS (農業組合法人おもす)",
+  "lines": [
+   "OH!MOS",
+   "(農業組合法人おもす)"
+  ],
+  "confidence": "verified"
+ },
+ "7adb0e9f4be11236": {
+  "_field": "hours",
+  "_names": ["びゅうお"],
+  "_raw": "10:00～20:00（木曜日は14:00まで）",
+  "_text": "10:00～20:00（木曜日は14:00まで）",
+  "lines": [
+   "10:00～20:00（木曜日は14:00まで）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "7b3568e3608a0d68": {
+  "_field": "holidays",
+  "_names": ["古安"],
+  "_raw": "火曜日<br> https://www.furuyasu.com/",
+  "_text": "火曜日\nhttps://www.furuyasu.com/",
+  "lines": [
+   "火曜日"
+  ],
+  "extra": [
+   "https://www.furuyasu.com/"
+  ],
+  "confidence": "verified"
+ },
+ "7b53b5a6c1e4e8ad": {
+  "_field": "address",
+  "_names": ["オフィスグルー"],
+  "_raw": "沼津市大諏訪 677-1-102",
+  "_text": "沼津市大諏訪 677-1-102",
+  "lines": [
+   "沼津市大諏訪677-1-102"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "7e0c9368a9675f8d": {
+  "_field": "hours",
+  "_names": ["明治茶館"],
+  "_raw": "土曜・日曜10:00～16:00(L.O.15:30)",
+  "_text": "土曜・日曜10:00～16:00(L.O.15:30)",
+  "lines": [
+   "土曜・日曜10:00～16:00(L.O.15:30)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "7e182840d6fbb075": {
+  "_field": "hours",
+  "_names": ["阿見屋パーキング"],
+  "_raw": "平日・土曜　8：00～21：00<br>土・日曜日　10：00～19：00",
+  "_text": "平日・土曜8:00～21:00\n土・日曜日10:00～19:00",
+  "lines": [
+   "平日・土曜8:00～21:00",
+   "土・日曜日10:00～19:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "7ff725f2021331b7": {
+  "_field": "holidays",
+  "_names": ["オフィスグルー"],
+  "_raw": "土曜日・日曜日・祝日<br>※大変申し訳ございませんが駐車場はありません。<br>https://www.gluee.jp/",
+  "_text": "土曜日・日曜日・祝日\n※大変申し訳ございませんが駐車場はありません。\nhttps://www.gluee.jp/",
+  "lines": [
+   "土曜日・日曜日・祝日"
+  ],
+  "extra": [
+   "※大変申し訳ございませんが駐車場はありません。",
+   "https://www.gluee.jp/"
+  ],
+  "confidence": "verified"
+ },
+ "80085445d32a9622": {
+  "_field": "name",
+  "_names": ["アニメイト　沼津店"],
+  "_raw": "アニメイト　沼津店",
+  "_text": "アニメイト 沼津店",
+  "lines": [
+   "アニメイト",
+   "沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "854b37d4d8573856": {
+  "_field": "name",
+  "_names": ["三交イン 沼津駅前"],
+  "_raw": "三交イン 沼津駅前",
+  "_text": "三交イン 沼津駅前",
+  "lines": [
+   "三交イン",
+   "沼津駅前"
+  ],
+  "confidence": "verified"
+ },
+ "85d45ab5f189205e": {
+  "_field": "name",
+  "_names": ["沼津駅ビル アントレ"],
+  "_raw": "沼津駅ビル アントレ",
+  "_text": "沼津駅ビル アントレ",
+  "lines": [
+   "沼津駅ビル",
+   "アントレ"
+  ],
+  "confidence": "verified"
+ },
+ "86460389e261170d": {
+  "_field": "holidays",
+  "_names": ["グランマ シーサイド店"],
+  "_raw": "火曜日・第三水曜日<br>https://sweets-grandma.com/seaside/",
+  "_text": "火曜日・第三水曜日\nhttps://sweets-grandma.com/seaside/",
+  "lines": [
+   "火曜日・第三水曜日"
+  ],
+  "extra": [
+   "https://sweets-grandma.com/seaside/"
+  ],
+  "confidence": "verified"
+ },
+ "8761a1f30d0fcd41": {
+  "_field": "holidays",
+  "_names": ["NPO法人 沼津観光協会"],
+  "_raw": "年中無休<br>http://numazu-mirai.com/",
+  "_text": "年中無休\nhttp://numazu-mirai.com/",
+  "lines": [
+   "年中無休"
+  ],
+  "extra": [
+   "http://numazu-mirai.com/"
+  ],
+  "confidence": "verified"
+ },
+ "90b31f61b56ed661": {
+  "_field": "name",
+  "_names": ["ミニストップ 沼津内浦店"],
+  "_raw": "ミニストップ 沼津内浦店",
+  "_text": "ミニストップ 沼津内浦店",
+  "lines": [
+   "ミニストップ",
+   "沼津内浦店"
+  ],
+  "confidence": "verified"
+ },
+ "90b82184420581df": {
+  "_field": "hours",
+  "_names": ["伊豆・三津シーパラダイス"],
+  "_raw": "9:00～17:00（最終入館16:00）",
+  "_text": "9:00～17:00（最終入館16:00）",
+  "lines": [
+   "9:00～17:00（最終入館16:00）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "912b82a077f89952": {
+  "_field": "name",
+  "_names": ["道の駅 くるら戸田"],
+  "_raw": "道の駅 くるら戸田",
+  "_text": "道の駅 くるら戸田",
+  "lines": [
+   "道の駅",
+   "くるら戸田"
+  ],
+  "confidence": "verified"
+ },
+ "94a8f1348bafaf95": {
+  "_field": "name",
+  "_names": ["焼きそば ゆきちゃん"],
+  "_raw": "焼きそば ゆきちゃん",
+  "_text": "焼きそば ゆきちゃん",
+  "lines": [
+   "焼きそば",
+   "ゆきちゃん"
+  ],
+  "confidence": "verified"
+ },
+ "94e9d1c537c86bef": {
+  "_field": "hours",
+  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_raw": "平日11:00 ～ 19:00<br>　　　　　土曜・日曜・祝日11:00 ～ 20:00",
+  "_text": "平日11:00～19:00\n土曜・日曜・祝日11:00～20:00",
+  "lines": [
+   "平日11:00～19:00",
+   "土曜・日曜・祝日11:00～20:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "95b314b93cc413aa": {
+  "_field": "holidays",
+  "_names": ["東海バス沼津営業所"],
+  "_raw": "日曜日・木曜日・祝日・12/30～1/3<br>※スタンプは東海バストラベル沼津駅前案内所に設置してあります。",
+  "_text": "日曜日・木曜日・祝日・12/30～1/3\n※スタンプは東海バストラベル沼津駅前案内所に設置してあります。",
+  "lines": [
+   "日曜日・木曜日・祝日・12/30～1/3"
+  ],
+  "extra": [
+   "※スタンプは東海バストラベル沼津駅前案内所に設置してあります。"
+  ],
+  "confidence": "verified"
+ },
+ "9942549d60b407ec": {
+  "_field": "address",
+  "_names": ["モスバーガーららぽーと沼津店"],
+  "_raw": "沼津市東椎路字東荒３０１-３ 3Fフードコート",
+  "_text": "沼津市東椎路字東荒３０１-３ 3Fフードコート",
+  "lines": [
+   "沼津市東椎路字東荒３０１-３",
+   "3Fフードコート"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "998fb1d88ff5284d": {
+  "_field": "holidays",
+  "_names": ["沼津大手町商店街"],
+  "_raw": "1月1日、城岡神社祭典時",
+  "_text": "1月1日、城岡神社祭典時",
+  "lines": [
+   "1月1日",
+   "城岡神社祭典時"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "9a9260672b895bdf": {
+  "_field": "address",
+  "_names": ["東海バス沼津営業所"],
+  "_raw": "沼津市大手町1-1-3　沼津商連ビル1F",
+  "_text": "沼津市大手町1-1-3 沼津商連ビル1F",
+  "lines": [
+   "沼津市大手町1-1-3",
+   "沼津商連ビル1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "9d2513b016be6540": {
+  "_field": "name",
+  "_names": ["オーシャン ビュー フジミ"],
+  "_raw": "オーシャン ビュー フジミ",
+  "_text": "オーシャン ビュー フジミ",
+  "lines": [
+   "オーシャン ビュー フジミ"
+  ],
+  "confidence": "verified"
+ },
+ "a1151999ceaccc27": {
+  "_field": "name",
+  "_names": ["モスバーガー 富士急沼津店"],
+  "_raw": "モスバーガー 富士急沼津店",
+  "_text": "モスバーガー 富士急沼津店",
+  "lines": [
+   "モスバーガー",
+   "富士急沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "a21576c4893c86a1": {
+  "_field": "holidays",
+  "_names": ["ジョリーアンジュ"],
+  "_raw": "火曜日<br>https://jolieange.com/",
+  "_text": "火曜日\nhttps://jolieange.com/",
+  "lines": [
+   "火曜日"
+  ],
+  "extra": [
+   "https://jolieange.com/"
+  ],
+  "confidence": "verified"
+ },
+ "a9436a517cb9d656": {
+  "_field": "name",
+  "_names": ["開運処　むさしや"],
+  "_raw": "開運処　むさしや",
+  "_text": "開運処 むさしや",
+  "lines": [
+   "開運処",
+   "むさしや"
+  ],
+  "confidence": "verified"
+ },
+ "a9ca7f1a53cb68e3": {
+  "_field": "holidays",
+  "_names": ["戸田観光協会"],
+  "_raw": "年中無休（年末年始を除く）<br>https://www.deep-heda.com",
+  "_text": "年中無休（年末年始を除く）\nhttps://www.deep-heda.com",
+  "lines": [
+   "年中無休（年末年始を除く）"
+  ],
+  "extra": [
+   "https://www.deep-heda.com"
+  ],
+  "confidence": "verified"
+ },
+ "aaf84e19b8d9216b": {
+  "_field": "name",
+  "_names": ["café　うみいろ"],
+  "_raw": "café　うみいろ",
+  "_text": "café うみいろ",
+  "lines": [
+   "café",
+   "うみいろ"
+  ],
+  "confidence": "verified"
+ },
+ "ad610930a5aae851": {
+  "_field": "address",
+  "_names": ["TONY'S HONOLULU"],
+  "_raw": "沼津市千本港町128-3 沼津魚市場INO 2F",
+  "_text": "沼津市千本港町128-3 沼津魚市場INO 2F",
+  "lines": [
+   "沼津市千本港町128-3",
+   "沼津魚市場INO 2F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "af38853a428ad7b5": {
+  "_field": "hours",
+  "_names": ["浜忠"],
+  "_raw": "昼　11:30～15:00<br> 夜　17:00～22:00",
+  "_text": "昼11:30～15:00\n夜17:00～22:00",
+  "lines": [
+   "昼11:30～15:00",
+   "夜17:00～22:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "b06b908f6e686f1b": {
+  "_field": "holidays",
+  "_names": ["モスバーガー 富士急沼津店", "イシバシプラザ"],
+  "_raw": "なし<br>※閉店により、終了しました。",
+  "_text": "なし\n※閉店により、終了しました。",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "※閉店により、終了しました。"
+  ],
+  "confidence": "verified"
+ },
+ "b14aa219d706033b": {
+  "_field": "hours",
+  "_names": ["SUN!SUN!サンシャインCAFE"],
+  "_raw": "平日 11:00～20:30<br>土日祝 10:00～20:30",
+  "_text": "平日 11:00～20:30\n土日祝 10:00～20:30",
+  "lines": [
+   "平日 11:00～20:30",
+   "土日祝 10:00～20:30"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "b615fb7dfb917440": {
+  "_field": "hours",
+  "_names": ["グランマ シーサイド店"],
+  "_raw": "10:00 ～ 18:30（L.O.17:00）",
+  "_text": "10:00～18:30（L.O.17:00）",
+  "lines": [
+   "10:00～18:30（L.O.17:00）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "b931772837f589f4": {
+  "_field": "name",
+  "_names": ["玉子焼 木村屋"],
+  "_raw": "玉子焼 木村屋",
+  "_text": "玉子焼 木村屋",
+  "lines": [
+   "玉子焼",
+   "木村屋"
+  ],
+  "confidence": "verified"
+ },
+ "b93762b104f68540": {
+  "_field": "holidays",
+  "_names": ["有限会社 大谷油店"],
+  "_raw": "木曜日<br>https://gogo.gs/shop/rally/2299000135",
+  "_text": "木曜日\nhttps://gogo.gs/shop/rally/2299000135",
+  "lines": [
+   "木曜日"
+  ],
+  "extra": [
+   "https://gogo.gs/shop/rally/2299000135"
+  ],
+  "confidence": "verified"
+ },
+ "bc694cbeadd34743": {
+  "_field": "address",
+  "_names": ["沼津大手町商店街"],
+  "_raw": "沼津市大手町3-5-21<br>(スタンプは1Fロビーに設置してあります)",
+  "_text": "沼津市大手町3-5-21\n(スタンプは1Fロビーに設置してあります)",
+  "lines": [
+   "沼津市大手町3-5-21"
+  ],
+  "extra": [
+   "(スタンプは1Fロビーに設置してあります)"
+  ],
+  "confidence": "verified"
+ },
+ "be000163cf815822": {
+  "_field": "holidays",
+  "_names": ["サスナカ長澤水産"],
+  "_raw": "水・土 (不定休)・日（スタンプは7:30～11:30、奥駿河湾日曜市にて設置）",
+  "_text": "水・土 (不定休)・日（スタンプは7:30～11:30、奥駿河湾日曜市にて設置）",
+  "_comment": "placement note fused with a schedule; kept in 定休日 and copied into その他",
+  "_duplicate": ["（スタンプは7:30～11:30、奥駿河湾日曜市にて設置）"],
+  "lines": [
+   "水・土 (不定休)・日",
+   "（スタンプは7:30～11:30、奥駿河湾日曜市にて設置）"
+  ],
+  "extra": [
+   "（スタンプは7:30～11:30、奥駿河湾日曜市にて設置）"
+  ],
+  "confidence": "verified"
+ },
+ "bf3ad8e5392df1a2": {
+  "_field": "holidays",
+  "_names": ["イトーヨーカドー沼津店"],
+  "_raw": "なし<br>閉店により終了しました。<br>https://blog.itoyokado.co.jp/shop/078/index.htm",
+  "_text": "なし\n閉店により終了しました。\nhttps://blog.itoyokado.co.jp/shop/078/index.htm",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "閉店により終了しました。",
+   "https://blog.itoyokado.co.jp/shop/078/index.htm"
+  ],
+  "confidence": "verified"
+ },
+ "c09eddbb6d95412d": {
+  "_field": "address",
+  "_names": ["ダイワロイネットホテルぬまづ"],
+  "_raw": "沼津市大手町1-1-4(プラサ ヴェルデ)",
+  "_text": "沼津市大手町1-1-4(プラサ ヴェルデ)",
+  "lines": [
+   "沼津市大手町1-1-4",
+   "(プラサ ヴェルデ)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "c36ad3f9baff5877": {
+  "_field": "name",
+  "_names": ["沼津・湯河原温泉 万葉の湯"],
+  "_raw": "沼津・湯河原温泉 万葉の湯",
+  "_text": "沼津・湯河原温泉 万葉の湯",
+  "lines": [
+   "沼津・湯河原温泉",
+   "万葉の湯"
+  ],
+  "confidence": "verified"
+ },
+ "c612d5492708557c": {
+  "_field": "name",
+  "_names": ["有限会社 大谷油店"],
+  "_raw": "有限会社 大谷油店",
+  "_text": "有限会社 大谷油店",
+  "lines": [
+   "有限会社 大谷油店"
+  ],
+  "confidence": "verified"
+ },
+ "c61d12ca87d8e1cb": {
+  "_field": "name",
+  "_names": ["ジャンボエンチョー　沼津店"],
+  "_raw": "ジャンボエンチョー　沼津店",
+  "_text": "ジャンボエンチョー 沼津店",
+  "lines": [
+   "ジャンボエンチョー",
+   "沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "c81860414756fece": {
+  "_field": "name",
+  "_names": ["肉バル＆ワイン ベルサイユのバル"],
+  "_raw": "肉バル＆ワイン ベルサイユのバル",
+  "_text": "肉バル & ワイン ベルサイユのバル",
+  "lines": [
+   "肉バル & ワイン",
+   "ベルサイユのバル"
+  ],
+  "confidence": "verified"
+ },
+ "c87231edc3c62101": {
+  "_field": "hours",
+  "_names": ["駿河の味　どんむす"],
+  "_raw": "平日11:00～16:00　<br>　　　　　土日祝11:00 ～ 18:00",
+  "_text": "平日11:00～16:00\n土日祝11:00～18:00",
+  "lines": [
+   "平日11:00～16:00",
+   "土日祝11:00～18:00"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "c8802e9223fb3ff0": {
+  "_field": "address",
+  "_names": ["NPO法人 沼津観光協会"],
+  "_raw": "沼津市大手町1-1-1 アントレ2F",
+  "_text": "沼津市大手町1-1-1 アントレ2F",
+  "lines": [
+   "沼津市大手町1-1-1",
+   "アントレ2F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "cb1ddb425ab60efd": {
+  "_field": "hours",
+  "_names": ["沼津市歴史民俗資料館"],
+  "_raw": "9:00～16:00<br>休館日／毎週月曜日（祝日は開館）、毎月最終の平日、祝日の翌日（土曜日・日曜日を除く）、年末年始（12月29日～1月3日）<br>入館料／無料（※ただし御用邸記念公園への入園料大人100円、小・中学生50円が必要です）",
+  "_text": "9:00～16:00\n休館日／毎週月曜日（祝日は開館）、毎月最終の平日、祝日の翌日（土曜日・日曜日を除く）、年末年始（12月29日～1月3日）\n入館料／無料（※ただし御用邸記念公園への入園料大人100円、小・中学生50円が必要です）",
+  "lines": [
+   "9:00～16:00",
+   "休館日／毎週月曜日（祝日は開館）",
+   "毎月最終の平日",
+   "祝日の翌日（土曜日・日曜日を除く）",
+   "年末年始（12月29日～1月3日）"
+  ],
+  "extra": [
+   "入館料／無料",
+   "（※ただし御用邸記念公園への入園料大人100円、小・中学生50円が必要です）"
+  ],
+  "confidence": "verified"
+ },
+ "cc88457adddcd4e1": {
+  "_field": "name",
+  "_names": ["第一生命保険   沼津支社"],
+  "_raw": "第一生命保険   沼津支社",
+  "_text": "第一生命保険 沼津支社",
+  "lines": [
+   "第一生命保険",
+   "沼津支社"
+  ],
+  "confidence": "verified"
+ },
+ "ce5c41cc9fc97c25": {
+  "_field": "name",
+  "_names": ["海鮮丼と魚河岸定食\nかもめ丸"],
+  "_raw": "海鮮丼と魚河岸定食\nかもめ丸",
+  "_text": "海鮮丼と魚河岸定食 かもめ丸",
+  "lines": [
+   "海鮮丼と魚河岸定食",
+   "かもめ丸"
+  ],
+  "confidence": "verified"
+ },
+ "cf9ecb83f5dc0e68": {
+  "_field": "address",
+  "_names": ["遠藤新聞舗"],
+  "_raw": "沼津市大手町5-11-3　5階",
+  "_text": "沼津市大手町5-11-3 5階",
+  "lines": [
+   "沼津市大手町5-11-3",
+   "5階"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "d0bedc51844e63a0": {
+  "_field": "name",
+  "_names": ["沼津港 魚永"],
+  "_raw": "沼津港 魚永",
+  "_text": "沼津港 魚永",
+  "lines": [
+   "沼津港",
+   "魚永"
+  ],
+  "confidence": "verified"
+ },
+ "d769b01e5ea0787f": {
+  "_field": "holidays",
+  "_names": ["阿見屋パーキング"],
+  "_raw": "なし<br>※スタンプ及び缶バッジの販売は平成31年3月31日をもって終了しました。",
+  "_text": "なし\n※スタンプ及び缶バッジの販売は平成31年3月31日をもって終了しました。",
+  "lines": [
+   "なし"
+  ],
+  "extra": [
+   "※スタンプ及び缶バッジの販売は平成31年3月31日をもって終了しました。"
+  ],
+  "confidence": "verified"
+ },
+ "dd05de311ee45434": {
+  "_field": "hours",
+  "_names": ["沼津ラクーンよしもと劇場"],
+  "_raw": "平日15:00ー18:00　（休館日あり）<br>土日祝11:30ー公演終了時間(公演によって変動あり)<br>JR沼津駅南口を出て徒歩 約1分<br>https://numazu.yoshimoto.co.jp",
+  "_text": "平日15:00ー18:00（休館日あり）\n土日祝11:30ー公演終了時間(公演によって変動あり)\nJR沼津駅南口を出て徒歩 約1分\nhttps://numazu.yoshimoto.co.jp",
+  "lines": [
+   "平日15:00ー18:00（休館日あり）",
+   "土日祝11:30ー公演終了時間(公演によって変動あり)"
+  ],
+  "extra": [
+   "JR沼津駅南口を出て徒歩 約1分",
+   "https://numazu.yoshimoto.co.jp"
+  ],
+  "confidence": "verified"
+ },
+ "e35f792293371cbc": {
+  "_field": "address",
+  "_names": ["肉バル＆ワイン ベルサイユのバル"],
+  "_raw": "沼津市大手町4-5-4 遊楽館ビル1F",
+  "_text": "沼津市大手町4-5-4 遊楽館ビル1F",
+  "lines": [
+   "沼津市大手町4-5-4",
+   "遊楽館ビル1F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "e3f844e37ee67c28": {
+  "_field": "name",
+  "_names": ["HAMBURGER & CAFE 沼津バーガー"],
+  "_raw": "HAMBURGER & CAFE 沼津バーガー",
+  "_text": "HAMBURGER & CAFE 沼津バーガー",
+  "lines": [
+   "HAMBURGER & CAFE",
+   "沼津バーガー"
+  ],
+  "confidence": "verified"
+ },
+ "ebb73bbc4bdd7e7f": {
+  "_field": "holidays",
+  "_names": ["café　うみいろ"],
+  "_raw": "毎週月曜日 ※祝日の場合は翌日<br>閉店により終了しました。<br>https://www.numazu-umiiro.com",
+  "_text": "毎週月曜日 ※祝日の場合は翌日\n閉店により終了しました。\nhttps://www.numazu-umiiro.com",
+  "lines": [
+   "毎週月曜日 ※祝日の場合は翌日"
+  ],
+  "extra": [
+   "閉店により終了しました。",
+   "https://www.numazu-umiiro.com"
+  ],
+  "confidence": "verified"
+ },
+ "ede6bfdbea5a816b": {
+  "_field": "address",
+  "_names": ["シネマサンシャイン沼津"],
+  "_raw": "沼津市大手町1-1-5 BiVi沼津4F",
+  "_text": "沼津市大手町1-1-5 BiVi沼津4F",
+  "lines": [
+   "沼津市大手町1-1-5",
+   "BiVi沼津4F"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "f34338715804651f": {
+  "_field": "name",
+  "_names": ["石窯パン工房 しゃんぴによん 添地店"],
+  "_raw": "石窯パン工房 しゃんぴによん 添地店",
+  "_text": "石窯パン工房 しゃんぴによん 添地店",
+  "lines": [
+   "石窯パン工房",
+   "しゃんぴによん",
+   "添地店"
+  ],
+  "confidence": "verified"
+ },
+ "f416fed0ffa62b61": {
+  "_field": "holidays",
+  "_names": ["沼津市芹沢光治良記念館"],
+  "_raw": "毎週月曜日（休日にあたるときはその翌日）<br>休日の翌日（土曜日・日曜日・休日を除く）<br>年末年始（12月29日～1月3日）<br>https://www.city.numazu.shizuoka.jp/kurashi/shisetsu/serizawa/",
+  "_text": "毎週月曜日（休日にあたるときはその翌日）\n休日の翌日（土曜日・日曜日・休日を除く）\n年末年始（12月29日～1月3日）\nhttps://www.city.numazu.shizuoka.jp/kurashi/shisetsu/serizawa/",
+  "lines": [
+   "毎週月曜日（休日にあたるときはその翌日）",
+   "休日の翌日（土曜日・日曜日・休日を除く）",
+   "年末年始（12月29日～1月3日）"
+  ],
+  "extra": [
+   "https://www.city.numazu.shizuoka.jp/kurashi/shisetsu/serizawa/"
+  ],
+  "confidence": "verified"
+ },
+ "f5149a62ca85fcc9": {
+  "_field": "name",
+  "_names": ["魚がし鮨 流れ鮨沼津店"],
+  "_raw": "魚がし鮨 流れ鮨沼津店",
+  "_text": "魚がし鮨 流れ鮨沼津店",
+  "lines": [
+   "魚がし鮨",
+   "流れ鮨沼津店"
+  ],
+  "confidence": "verified"
+ },
+ "f7c65e0f57e37ef3": {
+  "_field": "holidays",
+  "_names": ["欧蘭陀館"],
+  "_raw": "月曜日(祝日の場合は翌日)",
+  "_text": "月曜日(祝日の場合は翌日)",
+  "lines": [
+   "月曜日(祝日の場合は翌日)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "f81df869fd2f9e7a": {
+  "_field": "address",
+  "_names": ["THE 3RD PLANET BiVi沼津店"],
+  "_raw": "沼津市大手町1-1-5 BiVi　3階",
+  "_text": "沼津市大手町1-1-5 BiVi 3階",
+  "lines": [
+   "沼津市大手町1-1-5",
+   "BiVi 3階"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "fa64cc510636cc07": {
+  "_field": "hours",
+  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_raw": "平日　11:00〜14:30（L.O.）、土日祝　10:30〜14:30（L.O.）",
+  "_text": "平日11:00〜14:30（L.O.）、土日祝10:30〜14:30（L.O.）",
+  "lines": [
+   "平日11:00〜14:30（L.O.）",
+   "土日祝10:30〜14:30（L.O.）"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
+ "fd82c4836573d808": {
+  "_field": "holidays",
+  "_names": ["カルクル沼津店"],
+  "_raw": "原則月曜日〜金曜日<br>https://www.carcru.com/numazu",
+  "_text": "原則月曜日〜金曜日\nhttps://www.carcru.com/numazu",
+  "lines": [
+   "原則月曜日〜金曜日"
+  ],
+  "extra": [
+   "https://www.carcru.com/numazu"
+  ],
+  "confidence": "verified"
+ },
+ "ffaa743ded13577f": {
+  "_field": "address",
+  "_names": ["沼津ラクーン"],
+  "_raw": "沼津市大手町3-4-1<br>1階西側(さんさん通り側)",
+  "_text": "沼津市大手町3-4-1\n1階西側(さんさん通り側)",
+  "lines": [
+   "沼津市大手町3-4-1",
+   "1階西側(さんさん通り側)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ }
+}
