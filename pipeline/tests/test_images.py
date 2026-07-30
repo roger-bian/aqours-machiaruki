@@ -1,10 +1,18 @@
 """Tests for app/images.py.
 
 `cache_images` uses Supabase Storage itself as its dedupe cache, keyed on each
-location's natural key. The headline test here is the one that pins *why*: Google
-embeds a per-request token in every photo URL, so the URL differs on every KML
-fetch. Keying on it produced a cache that never hit, silently re-uploading a
-duplicate of every photo on every single run.
+location's id - the placemark's 1-based position in the KML. Two things are
+pinned here, both of them bugs this module has already had:
+
+1. The key must not depend on the photo URL. Google embeds a per-request token
+   in every photo URL, so it differs on every KML fetch. Keying on it produced
+   a cache that never hit, silently re-uploading a duplicate of every photo on
+   every single run.
+2. The key must not depend on the location's text or coordinates either. The
+   key used to be sha1(name|lat|lon), so a cosmetic upstream edit - a name's
+   line break arriving as a space, a pin nudged a few metres - moved the key,
+   missed the cache, re-fetched from Google's rate-limiting CDN and orphaned
+   the old object in the bucket.
 
 Note the patch targets. app/images.py does `from app.storage import ...`, which
 binds those names into its own module namespace at import time, so patching
@@ -44,7 +52,17 @@ def stub_storage(monkeypatch, exists=False):
     return calls
 
 
-def test_key_is_the_natural_key_not_the_photo_url(monkeypatch):
+# --- what the key is made of ----------------------------------------------
+
+def test_keys_are_the_one_based_position(monkeypatch):
+    calls = stub_storage(monkeypatch)
+
+    images.cache_images([record(), record(), record()])
+
+    assert calls['exists'] == ['locations/1', 'locations/2', 'locations/3']
+
+
+def test_key_is_the_id_not_the_photo_url(monkeypatch):
     """The regression test for the re-upload-every-run bug. Google re-tokenizes
     the photo URL on every KML fetch, so the same location must still land on the
     same Storage object."""
@@ -57,15 +75,95 @@ def test_key_is_the_natural_key_not_the_photo_url(monkeypatch):
     assert calls['exists'][0] == calls['exists'][1]
 
 
-def test_distinct_locations_get_distinct_keys(monkeypatch):
+def test_key_survives_a_rename_or_a_moved_pin(monkeypatch):
+    """The regression test for the orphaned-object bug: under the old
+    sha1(name|lat|lon) key, an upstream edit this cosmetic changed the key,
+    re-fetched the identical photo and left the old object behind forever."""
+    calls = stub_storage(monkeypatch, exists=True)
+
+    before = images.cache_images([record(name='海鮮丼と魚河岸定食\nかもめ丸', lat=35.1, lon=138.8)])
+    after = images.cache_images([record(name='海鮮丼と魚河岸定食 かもめ丸', lat=35.2, lon=138.9)])
+
+    assert before == after
+    assert calls['fetched'] == []
+
+
+def test_distinct_positions_get_distinct_keys(monkeypatch):
+    """Identical text and coordinates - the old key would have collapsed all
+    three onto one object."""
     stub_storage(monkeypatch)
-    urls = images.cache_images([
-        record(name='A', lat=35.1, lon=138.8),
-        record(name='B', lat=35.1, lon=138.8),
-        record(name='A', lat=35.2, lon=138.8),
-    ])
+
+    urls = images.cache_images([record(), record(), record()])
+
     assert len(set(urls)) == 3
 
+
+def test_the_key_counts_records_not_photos(monkeypatch):
+    """Position is the record's place in the KML, so a location with no photo
+    still consumes its number. Counting only the records that have a photo would
+    hand every later location the previous one's picture."""
+    calls = stub_storage(monkeypatch)
+
+    urls = images.cache_images([
+        record(img_url=''),
+        record(img_url='https://g/photo'),
+    ])
+
+    assert calls['exists'] == ['locations/2']
+    assert urls == ['', 'https://storage/locations/2']
+
+
+def test_keys_line_up_with_the_ids_db_will_assign(monkeypatch, placemarks):
+    """app/images.py and app/db.py derive the id independently, both from this
+    list's order. If the two ever disagreed, a location would render another
+    location's photo - so pin them against each other over the real fixture."""
+    from app.db import upsert_locations
+    from app.main import _build_records
+    import psycopg2
+
+    records = _build_records(placemarks)
+    calls = stub_storage(monkeypatch)
+    keys = [images.photo_key(i) for i in range(1, len(records) + 1)]
+    assert images.cache_images(records) == [f'https://storage/{k}' for k in keys]
+
+    executed = []
+
+    class Cursor:
+        def execute(self, sql, params):
+            executed.append(params)
+
+        def fetchone(self):
+            return (True,)
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    class Connection:
+        def cursor(self):
+            return Cursor()
+
+        def commit(self):
+            pass
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(psycopg2, 'connect', lambda url: Connection())
+    for r in records:
+        r['img_url'] = 'https://storage/stub'
+        del r['_raw_img_url']
+    upsert_locations(records)
+
+    assert [images.photo_key(params['id']) for params in executed] == keys
+
+
+# --- caching behaviour -----------------------------------------------------
 
 def test_an_existing_object_is_not_refetched(monkeypatch):
     """Storage *is* the cache. Google's CDN blocks and rate-limits repeat
@@ -97,9 +195,9 @@ def test_an_empty_photo_url_maps_straight_through(monkeypatch):
     calls = stub_storage(monkeypatch)
 
     urls = images.cache_images([
-        record(name='A', img_url=''),
-        record(name='B', img_url='https://g/photo'),
-        record(name='C', img_url=''),
+        record(img_url=''),
+        record(img_url='https://g/photo'),
+        record(img_url=''),
     ])
 
     assert len(urls) == 3
