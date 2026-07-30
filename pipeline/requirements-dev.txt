@@ -4,7 +4,10 @@
 #   pip install -r pipeline/requirements-dev.txt
 #   make test            (from the repo root)
 #
-# TestClient needs httpx, which uvicorn[standard] already pulls in.
+# starlette's TestClient refuses to import without an HTTP client of its own
+# (`RuntimeError: ... requires the httpx2 package`) - starlette 1.x wants
+# httpx2, not httpx, and uvicorn[standard] supplies neither.
 -r requirements.txt
 
 pytest
+httpx2

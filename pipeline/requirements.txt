@@ -1,11 +1,15 @@
 # Uses the `aqours` pyenv virtualenv (see .python-version). GDAL requires
-# the native library/headers first: `sudo apt-get install libgdal-dev
-# gdal-bin`. The pinned GDAL== version below must match `gdal-config
-# --version` on the system, or the pip install fails to build - re-pin and
-# re-check after any GDAL system package upgrade. See CLAUDE.md for the
+# the native library/headers first: `brew install gdal` on macOS,
+# `sudo apt-get install libgdal-dev gdal-bin` on Debian/Ubuntu. The pinned
+# GDAL== version below must match `gdal-config --version` on the system, or
+# the pip install fails to build - re-pin and re-check after any GDAL system
+# package upgrade. Not a soft requirement: 3.12.2's bindings against libgdal
+# 3.13.2 die on `use of undeclared identifier 'ABS'`, a macro 3.13 removed
+# from cpl_port.h. Only local dev reads this pin - pipeline/Dockerfile
+# rewrites it from the image's own gdal-config. See CLAUDE.md for the
 # OGR_SKIP=LIBKML gotcha (set in app/kml.py) that this depends on.
 geotable
-GDAL==3.12.2
+GDAL==3.13.2
 
 fastapi
 uvicorn[standard]
