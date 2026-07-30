@@ -3,7 +3,7 @@ import type { Location, OpenStatus } from '../data/types';
 import { colorForMember } from '../data/memberColors';
 import { RING_COLORS } from '../data/markerColors';
 import { closingTimeFor, openStatusFor } from '../data/openStatus';
-import { toDisplayLines } from '../data/textLines';
+import { extraLines, linesFor } from '../data/displayLines';
 
 const PANEL_STYLE: React.CSSProperties = {
   display: 'block',
@@ -69,11 +69,13 @@ function CollapsibleField({ label, children }: { label: string; children: React.
   );
 }
 
-/** One line per clause (see data/textLines.ts), bare URLs turned into links. */
-function WordLines({ value }: { value: string }) {
+/** Pre-broken lines (see pipeline/app/display.py), bare URLs turned into links.
+ *  The link check is anchored, so a URL has to occupy its whole line - which is
+ *  an invariant of the override corpus, not a hope. */
+function WordLines({ lines }: { lines: string[] }) {
   return (
     <>
-      {toDisplayLines(value).map((line, i) => (
+      {lines.map((line, i) => (
         <span key={i}>
           {URL_PATTERN.test(line) ? (
             <a href={line} target="_blank" rel="noopener noreferrer">
@@ -89,12 +91,13 @@ function WordLines({ value }: { value: string }) {
   );
 }
 
-function AddressBody({ value }: { value: string }) {
-  // the query keeps the untouched `value` - line breaks are for reading only
-  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+function AddressBody({ lines, query }: { lines: string[]; query: string }) {
+  // the query keeps the untouched column value - line breaks are for reading
+  // only, and rejoining them is lossy (a break consumes the comma it replaced)
+  const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
   return (
     <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-      {toDisplayLines(value).map((line, i) => (
+      {lines.map((line, i) => (
         <span key={i}>
           {line}
           <br />
@@ -173,6 +176,7 @@ export function DetailPanel({
   onToggleBadge,
   onClose,
 }: Props) {
+  const extras = extraLines(location);
   return (
     <div style={PANEL_STYLE}>
       <button
@@ -233,9 +237,7 @@ export function DetailPanel({
         }}
       >
         <b>
-          {/* breakOnWhitespace off: a space in a name is an ordinary space
-              (`三交イン 沼津駅前`), not a stand-in for a source <br> */}
-          {toDisplayLines(location.name, { breakOnWhitespace: false }).map((line, i) => (
+          {linesFor(location, 'name').map((line, i) => (
             <span key={i}>
               {i > 0 && <br />}
               {line}
@@ -249,14 +251,22 @@ export function DetailPanel({
           inheriting the previous location's expanded state */}
       <div key={location.id}>
         <CollapsibleField label="住所">
-          <AddressBody value={location.address} />
+          <AddressBody lines={linesFor(location, 'address')} query={location.address} />
         </CollapsibleField>
         <CollapsibleField label="営業時間">
-          <WordLines value={location.hours} />
+          <WordLines lines={linesFor(location, 'hours')} />
         </CollapsibleField>
         <CollapsibleField label="定休日">
-          <WordLines value={location.holidays} />
+          <WordLines lines={linesFor(location, 'holidays')} />
         </CollapsibleField>
+        {/* everything the source put in 営業時間/定休日/住所 that isn't a
+            schedule or an address: parking, URLs, stamp placement, end-of-rally
+            markers. Absent entirely for the ~2/3 of locations with none. */}
+        {extras.length > 0 && (
+          <CollapsibleField label="その他">
+            <WordLines lines={extras} />
+          </CollapsibleField>
+        )}
       </div>
     </div>
   );

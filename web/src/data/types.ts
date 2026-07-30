@@ -28,6 +28,21 @@ export type OpenStatus =
   | 'permanently_closed'
   | 'unknown';
 
+/** The four fields whose line breaks are decided in the pipeline. */
+export type DisplayField = 'name' | 'address' | 'hours' | 'holidays';
+
+/**
+ * Pre-broken lines from pipeline/app/display.py, mirrored by
+ * `CONTRACT_KEYS` in pipeline/tests/test_display_golden.py. One line per
+ * `<br/>`; the text columns stay faithful to the KML, so the address's Maps
+ * query still uses the unbroken string.
+ */
+export type DisplayJson = Record<DisplayField, string[]> & {
+  /** その他: parking, URLs, stamp placement, end-of-rally markers */
+  extra: string[];
+  confidence: 'verified' | 'auto';
+};
+
 export type Location = {
   id: number;
   name: string;
@@ -38,6 +53,7 @@ export type Location = {
   hours: string;
   holidays: string;
   hours_json: HoursJson | null;
+  display_json: DisplayJson | null;
   img_url: string;
   // collection state - the frontend is the only writer of these two columns
   stamp: boolean;
