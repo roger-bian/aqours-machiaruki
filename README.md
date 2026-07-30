@@ -12,7 +12,11 @@ open, amber closing within two hours, red closed, black permanently closed,
 no ring when the source data doesn't say. The two filter checkboxes (`未獲得`
 and `営業中のみ`) stack.
 
-Four separate pieces:
+A magnifying glass in the top-left searches every location by name or by
+stamp number — an all-digit query is treated as a number *prefix*, so typing
+`1` matches 1, 10–19 and 100+, and `12` narrows it.
+
+Five separate pieces:
 
 - **`web/`** — React + Vite + Leaflet static frontend. Reads location data
   straight from Supabase's REST API (PostgREST); no KML parsing or data
@@ -26,6 +30,10 @@ Four separate pieces:
   published to Google Play.
 - **Supabase** (Postgres + Storage) — the `locations` table and the image
   bucket. See `db/supabase_schema.sql` for the schema.
+- **Auth0** — Google login against a small email allowlist. Supabase trusts
+  the tenant as a Third-Party Auth provider, so row-level security evaluates
+  the real ID token; `pipeline/` verifies the same token independently. Not
+  optional — nothing renders or reads data without it.
 
 `db/` and `postgrest/` also contain a from-scratch **local** Postgres +
 standalone PostgREST setup (no Docker/Supabase CLI needed), useful for
@@ -99,11 +107,10 @@ endpoint (see `CLAUDE.md`'s "Auth" section for the full picture).
 on startup if it's unset) and must match the same allowlist enforced
 independently by the Auth0 Action that gates login itself.
 
-Run the schema once against your Supabase project (`psql "$PIPELINE_DATABASE_URL" -f db/supabase_schema.sql`),
-**and** register Auth0 as a Third-Party Auth provider (Supabase Dashboard →
-Authentication → Third-Party Auth), then start the service and trigger a
-pipeline run (needs a real Auth0 ID token — easiest to copy one out of the
-frontend's network tab after logging in):
+Run the schema once against your Supabase project
+(`psql "$PIPELINE_DATABASE_URL" -f db/supabase_schema.sql`), **and** register
+Auth0 as a Third-Party Auth provider (Supabase Dashboard → Authentication →
+Third-Party Auth).
 
 > On a project created before the `hours_json` / `display_json` columns
 > existed, the `CREATE TABLE IF NOT EXISTS` above is a no-op and won't add
@@ -114,11 +121,22 @@ frontend's network tab after logging in):
 > or policy change: `GRANT SELECT` is table-wide and `GRANT UPDATE` stays
 > scoped to `(stamp, badge)`.
 
+Then start the service and trigger a pipeline run (needs a real Auth0 ID
+token — easiest to copy one out of the frontend's network tab after logging
+in):
+
 ```bash
 cd pipeline
-uvicorn app.main:app --port 8000
+uvicorn app.main:app --port 8000    # or `make pipeline` from the repo root
 curl -X POST http://localhost:8000/pipeline/run -H "Authorization: Bearer <id-token>"
 ```
+
+Adding a pipeline-written column the frontend also *reads* is **four ordered
+steps**, not one: `ALTER TABLE` in the SQL Editor → push the pipeline
+change → run データ更新 to populate it → push the frontend change. The
+frontend push is last because `render.yaml`'s web service has no
+`buildFilter` and so redeploys on *every* push; ship it before the column is
+populated and the panel renders its fallback.
 
 ### `web/`
 
@@ -144,8 +162,12 @@ custom claim on the ID token, and add `http://localhost:5173` to Allowed
 Callback URLs / Logout URLs / Web Origins for local dev.
 
 ```bash
-npm run dev
+npm run dev          # or `make web` from the repo root
+npm run build        # production build
 ```
+
+Working on the map alone needs nothing else running — `web/` reads Supabase
+directly, so the `pipeline/` service is only required to refresh the data.
 
 ### `android/`
 
@@ -209,16 +231,29 @@ The KML's `営業時間`/`定休日` fields are freeform Japanese —
 column (intervals as minutes from midnight) that the frontend evaluates
 against the clock in `Asia/Tokyo`.
 
-Parsing is three tiers, keyed by a hash of the raw text: hand-reviewed
-entries in `pipeline/app/hours_parsed.json`, then a rule-based fallback.
+Parsing is three tiers, keyed by `sha1` of the raw text:
+
+1. **`verified`** — a hand-reviewed entry in `pipeline/app/hours_parsed.json`.
+2. **`manual`** — same file, for local knowledge the source does *not* state
+   (currently one entry: a hotel with no `営業時間` label at all).
+3. **`auto`** — the rule-based fallback, always available.
+
 Tier one exists because the rule tier discards parentheticals as noise
 (`（最終入園15:30）`, `(L.O.16:30)`) and so also discards the handful that
 carry real hours. Anything falling back to the rule tier is counted and
 reported in the データ更新 toast as `N件が未確認`, because that tier fails
 confidently rather than loudly.
 
-Roughly 22% of locations can't be fully determined — `不定休` means
-"irregular holidays" and the schedule was simply never written down. Those
+Because the key is content-addressed on the raw text, identical source text
+dedupes — 136 locations collapse to 125 keys (seven hotels share
+`年中無休`/`なし`), which is why each entry's `_names` is an array. A hash miss
+never creates or breaks a DB row: the upsert key is `id`, and the hash only
+indexes the override file. An upstream text edit *should* stop matching, since
+a hand-written override must not keep overriding data that changed.
+
+Sixteen of the 136 locations (12%) can't be fully determined — `不定休` means
+"irregular holidays" and the schedule was simply never written down. That's
+not a parser weakness; no parser extracts a schedule nobody wrote. Those
 render honestly (no ring, or a ⚠ caveat) rather than guessing.
 
 ```bash
@@ -228,7 +263,81 @@ python tools/gen_hours_overrides.py    # regenerate the override file after a KM
 ```
 
 Regenerating preserves existing entries, so hand corrections survive; only
-new or upstream-edited entries get a fresh rule-based baseline.
+new or upstream-edited entries get a fresh rule-based baseline. The
+generator's `CORRECTIONS` dict carries the rationale for each hand-fix.
+`python -m app.hours` fetches the **live** KML, so it's the tool for
+eyeballing new upstream text — not a change gate; `make test` is (see
+"Tests").
+
+## Line breaking
+
+Where the freeform Japanese wraps in the detail panel is decided in the
+pipeline, not the frontend: `pipeline/app/display.py` writes a `display_json`
+column holding pre-broken lines per field, plus the その他 partition. The
+frontend just renders them (`web/src/data/displayLines.ts` is only the fallback
+for a row the pipeline hasn't written yet).
+
+Rules were tried and retired. Breaking is a *semantic* call — no rule knows
+that `富士急沼津店` is a branch of モスバーガー while `やま弥` is the actual
+name of 駿陽荘, and Japanese puts the descriptor before the name about as often
+as after (`旅館 浜の家` vs `グランマ シーサイド店`), so ordering heuristics
+don't help either. Four rounds of rules left ~9 cases unresolvable, failing
+them confidently. So `pipeline/app/display_lines.json` is authored per entry
+(152 of them) and **the git diff of that file is the review** — there is no
+rule baseline to diff against.
+
+Two tiers only, keyed on `sha1(field \x1f normalized_text)`: `verified`
+(a committed entry) → `auto` (one line per author break, URLs isolated,
+nothing else decided). Keys are **per field**, so editing a location's 営業時間
+leaves its 定休日 lines alone and `なし` is reviewed once rather than 35 times.
+
+Content leaves an entry by one of **three** destinations: `lines` (stays in its
+own field), `extra` (→ その他: parking, URLs, phone numbers, stamp placement,
+admission fees), or `to_holidays` (営業時間 → 定休日). The last exists because
+three locations write their closure days into the 営業時間 text and carry no
+定休日 label at all, so the panel used to show a 定休日 of `なし` directly above
+営業時間 listing the very closures it denied.
+
+### Editing `display_lines.json` by hand
+
+An entry may only **move whitespace around and drop the commas it breaks on**.
+That contract is `entry_problems()`, shared by the generator and the test
+suite — the generator refuses to write what the test would reject, so a bad
+stub shows up as a rising `unverified_lines` count in the データ更新 toast
+rather than as a silently wrong `verified`. Two invariants do the work: every
+line's non-droppable characters must be a contiguous run of the source's (no
+reordering, no insertion), and the character multiset across all three
+destinations must equal the source's after subtracting any declared
+`_duplicate` (nothing lost, nothing accidentally duplicated).
+
+So the loop for a hand edit is just:
+
+```bash
+# edit pipeline/app/display_lines.json directly, then:
+make test-py    # entry_problems per entry; failure ids read field:name
+```
+
+No live KML, no database, no generator run — `test_display_golden.py` reads
+the committed corpus, so this is the fast path and the actual gate. It
+catches a dropped character, a paraphrase, an invented line, a within-line
+reorder, undeclared duplication, a stale `_duplicate`, a hand-edited `_text`,
+and a URL pulled inline. **A source typo must survive**: `土日祝 10:0～20:00`
+is what the KML says — fix that upstream, not here.
+
+To pick up genuinely new upstream text, regenerate (needs the live KML, so
+network + GDAL):
+
+```bash
+cd pipeline
+python tools/gen_display_overrides.py
+```
+
+Existing keys keep their committed entry; new keys get an auto-tier stub to
+rewrite by hand. It unions `tests/fixtures/sample.kml`'s keys with the live
+KML's — the fixture is the only offline source of real 住所 text, so building
+from the live KML alone would let an upstream edit delete the entry the
+address coverage check depends on. It prints `!!` for dropped or stale keys.
+For new shapes worth reviewing, grep the corpus for `[（(]`.
 
 ## Tests
 
@@ -239,20 +348,42 @@ make test-py                                   # pytest for pipeline/ only
 make test-web                                  # vitest for web/ only
 ```
 
-Both halves run **fully offline** — no network, no database. The KML is a
-committed fixture trimmed from a real export, and `pipeline/tests/conftest.py`
-stubs out database access, since `PIPELINE_DATABASE_URL` normally points at
-production.
+`make test-py` is pytest over `pipeline/tests/`; `make test-web` is vitest over
+`web/src/**/*.test.ts`. The `.ts`-only pattern is deliberate — `.tsx` goes
+unmatched, so any logic worth testing lives in a plain module rather than
+inside a component.
 
-The weight is on the two places where a bug is a *wrong answer* rather than a
-crash: the freeform-Japanese hours parser, and the clock evaluation that turns
-its output into a marker's open/closed ring. `pipeline/app/hours_parsed.json`
-doubles as a golden corpus for the first — it stores each entry's raw source
-text beside its expected parse, so the rule tier is checked against all 125
-committed entries at once.
+Both halves run **fully offline** — no network, no database. The KML is
+`pipeline/tests/fixtures/sample.kml`, 12 real placemarks trimmed from a live
+export with only the photo tokens stubbed, each covering a specific parse
+shape. Twelve rather than six because `validate_structure` rejects a run with
+more than 10% of rows missing hours and exactly one entry legitimately has no
+`営業時間` label; a smaller fixture trips that ratio and forces tests to fake
+the real validator away. `pipeline/tests/conftest.py` stubs out database access
+entirely, since `PIPELINE_DATABASE_URL` normally points at production.
 
-`python -m app.hours` (above) is still the tool for eyeballing new upstream
-text, since it fetches the live KML. `make test` is the change gate.
+The weight sits on the places where a bug is a *wrong answer* rather than a
+crash:
+
+- **The hours parser** — `pipeline/app/hours_parsed.json` doubles as a golden
+  corpus, storing each entry's raw source text beside its expected parse. The
+  rule tier must reproduce 113 of the 125 committed entries exactly and must
+  still *fail* on exactly the hand-corrected ones, so a stale correction is
+  caught as readily as a regression.
+- **The clock evaluation** that turns that output into a marker's ring —
+  including the `Asia/Tokyo` resolution and the overnight (`end > 1440`)
+  shifts.
+- **The line-breaking corpus** — content preservation per entry, via
+  `entry_problems` (see "Line breaking" above).
+- **`stamp`/`badge` never appearing in the upsert.** `test_db.py` asserts on
+  the SQL as a *string*, because that's the one irreversible failure here: a
+  データ更新 that wipes collection state the source cannot regenerate. It was
+  added after checking which deliberate regressions the suite failed to
+  catch — adding `stamp` to the column list passed everything beforehand.
+
+Not covered by choice: `pipeline/app/auth.py`'s JWT verification (would need an
+RSA keypair and a JWKS stub to test PyJWT doing its job), React components,
+`pipeline/app/db.py` against a real Postgres, and `android/`.
 
 ## Notes
 
