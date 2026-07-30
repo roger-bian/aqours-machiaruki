@@ -40,6 +40,17 @@ local uses plain `GRANT`s).
 
 ## Environment & commands
 
+- **Secrets live in Infisical** (cloud, free tier), one folder per gitignored
+  file under the `prod` environment: `/pipeline` → `pipeline/.env`, `/web`
+  → `web/.env.local`, `/android` → `android/keystore.properties`, plus a
+  `keystoreJksBase64` secret holding `android/keystore/release.jks` (binary
+  → base64). `.infisical.json` committed, links repo → project; project ID
+  only, not a credential — public repo is fine. Pull per folder with
+  `infisical export --env=prod --path=/… --format=dotenv --output-file=…`;
+  README.md lists all four. **Nothing syncs automatically** —
+  Render/Supabase/Auth0 dashboards stay source of truth for *deployed* env
+  vars (`render.yaml`'s `sync: false`), Infisical mirrors *local* files only
+  → rotating a value there doesn't reach production.
 - **`pipeline/`**: pyenv virtualenv `aqours` (`.python-version`), Python 3.10;
   `pip install -r pipeline/requirements.txt`. GDAL needs the native lib first
   (`brew install gdal` on macOS, `sudo apt-get install libgdal-dev gdal-bin` on
