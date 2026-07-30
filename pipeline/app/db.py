@@ -9,8 +9,8 @@ DATABASE_URL = os.environ.get(
 )
 
 UPSERT_SQL = """
-    INSERT INTO locations (id, name, lat, lon, member, address, hours, holidays, hours_json, img_url, updated_at)
-    VALUES (%(id)s, %(name)s, %(lat)s, %(lon)s, %(member)s, %(address)s, %(hours)s, %(holidays)s, %(hours_json)s, %(img_url)s, now())
+    INSERT INTO locations (id, name, lat, lon, member, address, hours, holidays, hours_json, display_json, img_url, updated_at)
+    VALUES (%(id)s, %(name)s, %(lat)s, %(lon)s, %(member)s, %(address)s, %(hours)s, %(holidays)s, %(hours_json)s, %(display_json)s, %(img_url)s, now())
     ON CONFLICT (id) DO UPDATE SET
         name = EXCLUDED.name,
         lat = EXCLUDED.lat,
@@ -20,6 +20,7 @@ UPSERT_SQL = """
         hours = EXCLUDED.hours,
         holidays = EXCLUDED.holidays,
         hours_json = EXCLUDED.hours_json,
+        display_json = EXCLUDED.display_json,
         img_url = EXCLUDED.img_url,
         updated_at = now()
     RETURNING (xmax = 0) AS inserted
@@ -47,12 +48,13 @@ def upsert_locations(records):
     with psycopg2.connect(DATABASE_URL) as conn:
         with conn.cursor() as cur:
             for position, record in enumerate(records, start=1):
-                # Json() adapts the dict for the jsonb column; callers pass a
-                # plain dict and never have to think about serialization
+                # Json() adapts the dicts for the jsonb columns; callers pass
+                # plain dicts and never have to think about serialization
                 cur.execute(UPSERT_SQL, {
                     **record,
                     'id': position,
                     'hours_json': Json(record['hours_json']),
+                    'display_json': Json(record['display_json']),
                 })
                 (was_inserted,) = cur.fetchone()
                 if was_inserted:

@@ -74,7 +74,7 @@ def fake_connect(monkeypatch):
     return connect
 
 
-def record(name='ゲーマーズ沼津店', hours_json=None):
+def record(name='ゲーマーズ沼津店', hours_json=None, display_json=None):
     return {
         'name': name,
         'lat': 35.10157,
@@ -84,6 +84,10 @@ def record(name='ゲーマーズ沼津店', hours_json=None):
         'hours': '平日 11:00～20:00',
         'holidays': 'なし',
         'hours_json': hours_json if hours_json is not None else {'confidence': 'verified'},
+        'display_json': display_json if display_json is not None else {
+            'name': [name], 'address': ['沼津市添地町72青秀ビル1階'],
+            'hours': ['平日 11:00～20:00'], 'holidays': ['なし'],
+            'extra': [], 'confidence': 'verified'},
         'img_url': 'https://storage/deadbeef',
     }
 
@@ -119,10 +123,13 @@ def test_upsert_supplies_id_explicitly():
     assert '%(id)s' in UPSERT_SQL
 
 
-@pytest.mark.parametrize('column', ['name', 'lat', 'lon'])
+@pytest.mark.parametrize('column',
+                         ['name', 'lat', 'lon', 'hours_json', 'display_json'])
 def test_upsert_lets_a_row_follow_the_kml(column):
     """The row at position N has to be able to take N's current text. Leaving
-    these out of DO UPDATE SET would freeze a renamed shop at its old name."""
+    these out of DO UPDATE SET would freeze a renamed shop at its old name -
+    or, for display_json, keep every existing row on its first-ever set of
+    line breaks no matter how often the override file is regenerated."""
     assert f'{column} = EXCLUDED.{column}' in UPSERT_SQL
 
 
@@ -203,17 +210,20 @@ def test_every_record_is_executed_once(fake_connect):
     assert [params['name'] for _, params in executed] == ['A', 'B']
 
 
-def test_hours_json_is_adapted_for_the_jsonb_column(fake_connect):
+@pytest.mark.parametrize('column,value', [
+    ('hours_json', {'weekly': None, 'confidence': 'auto'}),
+    ('display_json', {'name': ['A'], 'extra': [], 'confidence': 'auto'}),
+])
+def test_a_jsonb_column_is_adapted_at_execute_time(fake_connect, column, value):
     """Wrapped at execute time so callers hand over a plain dict and never think
     about serialization."""
     connection = fake_connect([True])
-    schedule = {'weekly': None, 'confidence': 'auto'}
 
-    upsert_locations([record(hours_json=schedule)])
+    upsert_locations([record(**{column: value})])
 
     _, params = connection.cursors[0].executed[0]
-    assert isinstance(params['hours_json'], Json)
-    assert params['hours_json'].adapted == schedule
+    assert isinstance(params[column], Json)
+    assert params[column].adapted == value
 
 
 def test_the_caller_s_record_is_not_mutated(fake_connect):

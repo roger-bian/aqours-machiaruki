@@ -78,12 +78,14 @@ Authentication → Third-Party Auth), then start the service and trigger a
 pipeline run (needs a real Auth0 ID token — easiest to copy one out of the
 frontend's network tab after logging in):
 
-> On a project created before the `hours_json` column existed, the
-> `CREATE TABLE IF NOT EXISTS` above is a no-op and won't add it. Run the
-> single `ALTER TABLE locations ADD COLUMN IF NOT EXISTS hours_json JSONB;`
+> On a project created before the `hours_json` / `display_json` columns
+> existed, the `CREATE TABLE IF NOT EXISTS` above is a no-op and won't add
+> them. Run the two `ALTER TABLE locations ADD COLUMN IF NOT EXISTS …` lines
 > from `db/supabase_schema.sql` in the Supabase SQL Editor instead — don't
 > paste the whole file, since `CREATE POLICY` has no `IF NOT EXISTS` and
-> will error where the policies already exist.
+> will error where the policies already exist. Neither column needs a grant
+> or policy change: `GRANT SELECT` is table-wide and `GRANT UPDATE` stays
+> scoped to `(stamp, badge)`.
 
 ```bash
 cd pipeline

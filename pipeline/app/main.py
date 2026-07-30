@@ -13,6 +13,7 @@ from app import pipeline_state
 from app.auth import verify_auth0_token
 from app.db import upsert_locations
 from app.description import extract_img_url, parse_description
+from app.display import build_display_json
 from app.hours import parse_hours_holidays
 from app.images import cache_images
 from app.kml import fetch_kml, load_placemarks
@@ -57,6 +58,15 @@ def _build_records(placemarks):
             'holidays': fields['holidays'],
             'hours_json': parse_hours_holidays(
                 fields['raw_hours'], fields['raw_holidays']),
+            # display_json is built from the *raw* slices, not the display
+            # strings above: app/display.py runs description.py's cosmetic pass
+            # itself, with <br> becoming a real newline rather than a space
+            'display_json': build_display_json({
+                'name': row['Name'],
+                'address': fields['raw_address'],
+                'hours': fields['raw_hours'],
+                'holidays': fields['raw_holidays'],
+            }),
             '_raw_img_url': img_url,
         })
     return records
@@ -108,11 +118,17 @@ def _run_pipeline():
         # surfaced in the frontend toast so the gap is pulled, not remembered
         unverified = sum(
             1 for r in records if r['hours_json'].get('confidence') == 'auto')
+        # the same idea for app/display_lines.json, counted separately: the two
+        # artifacts have independent keyspaces and independent regeneration
+        # commands, so one merged number would hide which one to regenerate
+        unverified_lines = sum(
+            1 for r in records if r['display_json'].get('confidence') == 'auto')
 
     # only now, having successfully validated and upserted, does the new
     # download replace the accepted-structure baseline for the next run
     upload_object(BASELINE_KML_KEY, new_kml_bytes, KML_CONTENT_TYPE)
-    return {'inserted': inserted, 'updated': updated, 'unverified': unverified}
+    return {'inserted': inserted, 'updated': updated, 'unverified': unverified,
+            'unverified_lines': unverified_lines}
 
 
 def _execute_pipeline_run():

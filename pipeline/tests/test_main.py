@@ -14,7 +14,7 @@ Two hazards to know about when reading these:
 import pytest
 from fastapi.testclient import TestClient
 
-from app import hours, main, pipeline_state
+from app import display, hours, main, pipeline_state
 from app.auth import verify_auth0_token
 from app.validation import PipelineValidationError
 
@@ -101,12 +101,14 @@ def test_second_run_is_refused_while_one_is_in_flight(client, monkeypatch):
 
 
 def test_status_exposes_the_last_run(client):
-    pipeline_state.finish('success', details={'inserted': 1, 'updated': 2, 'unverified': 0})
+    pipeline_state.finish('success', details={
+        'inserted': 1, 'updated': 2, 'unverified': 0, 'unverified_lines': 0})
     assert client.get('/pipeline/status').json() == {
         'running': False,
         'last_result': 'success',
         'last_error': None,
-        'last_details': {'inserted': 1, 'updated': 2, 'unverified': 0},
+        'last_details': {'inserted': 1, 'updated': 2, 'unverified': 0,
+                         'unverified_lines': 0},
     }
 
 
@@ -151,7 +153,8 @@ def test_successful_run_upserts_and_promotes_the_baseline(fake_io):
     snapshot = pipeline_state.snapshot()
     assert snapshot['running'] is False
     assert snapshot['last_result'] == 'success', snapshot['last_error']
-    assert snapshot['last_details'] == {'inserted': 12, 'updated': 0, 'unverified': 0}
+    assert snapshot['last_details'] == {
+        'inserted': 12, 'updated': 0, 'unverified': 0, 'unverified_lines': 0}
 
     # the new download becomes the accepted-structure baseline only now, after a
     # successful validate + upsert
@@ -180,6 +183,22 @@ def test_unverified_counts_rows_that_fell_back_to_the_rule_tier(fake_io, monkeyp
     main._execute_pipeline_run()
 
     assert pipeline_state.snapshot()['last_details']['unverified'] == 12
+
+
+def test_unverified_lines_counts_rows_with_no_reviewed_break(fake_io, monkeypatch):
+    """Counted separately from `unverified`: the two artifacts have independent
+    keyspaces and regeneration commands, and a location can legitimately be
+    verified for one and auto for the other. Emptying the override file leaves
+    10 of the 12 fixture rows on the auto tier; 沼津グランドホテル and 安田屋旅館
+    stay verified because all four of their fields are a single unbreakable
+    token, which the fast path answers without an entry at all."""
+    monkeypatch.setattr(display, 'OVERRIDES', {})
+
+    main._execute_pipeline_run()
+
+    details = pipeline_state.snapshot()['last_details']
+    assert details['unverified'] == 0
+    assert details['unverified_lines'] == 10
 
 
 def test_run_against_an_existing_baseline(fake_io, baseline_kml):
