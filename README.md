@@ -33,6 +33,23 @@ developing against a local DB before pointing at the real Supabase project.
 
 ## Setup
 
+### Secrets (Infisical)
+
+The three gitignored secret files below (`pipeline/.env`, `web/.env.local`,
+`android/keystore.properties`) are mirrored in an Infisical project, one
+folder per file under the `prod` environment. If you have access to that
+project, pull them straight down instead of filling in values by hand.
+`.infisical.json` (committed, holds only the project ID — not a secret)
+already links this repo to that project, so the only one-time step is
+authenticating your own machine:
+
+```bash
+infisical login    # once per machine
+infisical export --env=prod --path=/pipeline --format=dotenv --output-file=pipeline/.env
+infisical export --env=prod --path=/web --format=dotenv --output-file=web/.env.local
+infisical export --env=prod --path=/android --format=dotenv --output-file=android/keystore.properties
+```
+
 ### `pipeline/`
 
 Uses a pyenv-managed virtualenv named `aqours` (see `.python-version`):
