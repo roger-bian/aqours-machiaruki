@@ -50,6 +50,16 @@ infisical export --env=prod --path=/web --format=dotenv --output-file=web/.env.l
 infisical export --env=prod --path=/android --format=dotenv --output-file=android/keystore.properties
 ```
 
+`android/keystore/release.jks` itself — the actual signing keystore, not
+just the passwords/alias in `keystore.properties` — is backed up
+separately as a base64 blob under the same `/android` path, since it's
+binary and gitignored:
+
+```bash
+infisical secrets get keystoreJksBase64 --env=prod --path=/android --plain \
+  | base64 -d > android/keystore/release.jks
+```
+
 ### `pipeline/`
 
 Uses a pyenv-managed virtualenv named `aqours` (see `.python-version`):
@@ -152,6 +162,10 @@ across rebuilds:
 keytool -genkeypair -v -keystore android/keystore/release.jks \
   -alias aqoursmachiaruki -keyalg RSA -keysize 2048 -validity 10000
 ```
+
+Already have a keystore backed up in Infisical (see "Secrets" above)?
+Restore it instead of generating a new one — a new keystore signs the
+app differently and breaks the fingerprint in `assetlinks.json`.
 
 Create `android/keystore.properties` (gitignored):
 
