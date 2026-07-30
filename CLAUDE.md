@@ -93,6 +93,13 @@ local uses plain `GRANT`s).
   column (Render auto-deploys on push). Never paste all of
   `db/supabase_schema.sql` — `CREATE POLICY` has no `IF NOT EXISTS`, errors
   wherever the policies already exist.
+- A new pipeline-written column the frontend also *reads* is **four beats**:
+  ALTER → pipeline push → データ更新 run → frontend push. The frontend push
+  is separate because `render.yaml`'s web service has no `buildFilter` and so
+  redeploys on *every* push — ship it before the column is populated and the
+  panel renders the fallback. Additive columns need no grant/policy change:
+  `GRANT SELECT` is table-wide, `GRANT UPDATE` stays scoped to
+  `(stamp, badge)`.
 
 ## Git commit conventions
 
@@ -120,8 +127,11 @@ local uses plain `GRANT`s).
    string/`'なし'`, never a raise. Touching this: recheck the label-less
    entries, not just the common case. Returns **both** the display strings
    (`hours`/`holidays`, cosmetically normalized) and the untouched
-   `raw_hours`/`raw_holidays` — `app/hours.py` content-addresses the raw text,
-   so normalizing first would make its hash depend on cosmetic choices here.
+   `raw_address`/`raw_hours`/`raw_holidays` — `app/hours.py` content-addresses
+   the raw text, so normalizing first would make its hash depend on cosmetic
+   choices here. `app/display.py` hashes the **normalized** text instead, the
+   opposite choice for the opposite reason (see "Line breaking"), and reuses
+   the `normalize_*` helpers here with `br='\n'` so the two can never drift.
    `holidays` keeps **every** `<br>` line; the old `.split('<br>')[0]` silently
    dropped the `※閉店により、終了しました。` marker on the 8 closed shops.
 3. **`app/images.py`** — `cache_images()` keys each Storage object
@@ -162,7 +172,10 @@ local uses plain `GRANT`s).
    skipped, rest still applies.
 5. **`app/hours.py`** — `parse_hours_holidays()` turns the freeform Japanese
    `営業時間`/`定休日` into the `hours_json` column. See "Business hours".
-6. **`app/db.py`** — `upsert_locations()` keys on **`id` = the placemark's
+6. **`app/display.py`** — `build_display_json()` turns the same freeform text
+   into the pre-broken `display_json` column (and the その他 partition). See
+   "Line breaking".
+7. **`app/db.py`** — `upsert_locations()` keys on **`id` = the placemark's
    1-based position in the KML**; that position *is* the stamp number the map
    renders (`MapView.tsx` labels each marker `loc.id`), so `id` is domain data,
    not a surrogate key. Derived from list order via
@@ -174,8 +187,8 @@ local uses plain `GRANT`s).
    state). The pipeline owns everything except collection state, which only the
    frontend writes — don't add `stamp`/`badge` to this query.
    `name`/`lat`/`lon` *are* in `DO UPDATE SET`: the row at position N must
-   follow the KML if its text changes. `hours_json` goes through
-   `psycopg2.extras.Json` at execute time, so callers hand over a plain dict.
+   follow the KML if its text changes. `hours_json`/`display_json` go through
+   `psycopg2.extras.Json` at execute time, so callers hand over plain dicts.
    Returns `(inserted, updated)`, used by `app/main.py`.
    **Why not the old `(name, lat, lon)` natural key**: `name` isn't stable.
    Two placemarks carry a literal newline in `<name>` (`海鮮丼と魚河岸定食\nかもめ丸`,
@@ -192,7 +205,7 @@ local uses plain `GRANT`s).
    stood to wedge future runs. Still uncovered: a location *leaving* the KML
    leaves a stale trailing row past the new count (nothing deletes rows;
    `validate_structure` only blocks a count drop past `MIN_COUNT_RATIO`).
-7. **`app/main.py`** / **`app/pipeline_state.py`** — `POST /pipeline/run`:
+8. **`app/main.py`** / **`app/pipeline_state.py`** — `POST /pipeline/run`:
    verify the Auth0 ID token (`app/auth.py`'s `verify_auth0_token`, see
    "Auth"), then a fast lock-protected check-and-kickoff returning
    `{'status': 'started'}` or `{'status': 'already_running'}` — never blocking
@@ -209,15 +222,19 @@ local uses plain `GRANT`s).
    `running`/`last_result`/`last_error`/`last_details` behind a
    `threading.Lock` (atomic across thread-pool handlers), unpersisted — a
    restart mid-run self-heals to "not running". `last_details` =
-   `{inserted, updated, unverified}` on success; `unverified` counts rows whose
-   schedule came from the rule tier rather than a hand-reviewed override,
-   surfaced in `RefreshDataButton`'s toast. `GET /pipeline/status` exposes
-   state for polling. A rejected/failed run still leaves DB/baseline untouched
-   — only *when* the pipeline runs/reports changed, not validation/rollback
-   semantics. Baseline KML in Supabase Storage, not local disk
-   (`BASELINE_KML_KEY = '_pipeline/baseline.kml'`, same bucket); `tempfile` is
-   scratch for `geotable.load()` only, nothing persists locally across
-   requests.
+   `{inserted, updated, unverified, unverified_lines}` on success; `unverified`
+   counts rows whose schedule came from the rule tier rather than a
+   hand-reviewed override, `unverified_lines` the same for `display_json` —
+   counted apart because the two artifacts have separate keyspaces and separate
+   regenerate commands, so one number would hide which to run. A row can
+   legitimately be verified for one and auto for the other. Both surfaced in
+   `RefreshDataButton`'s toast, as one 未確認 figure with the split behind it.
+   `GET /pipeline/status` exposes state for polling. A rejected/failed run
+   still leaves DB/baseline untouched — only *when* the pipeline runs/reports
+   changed, not validation/rollback semantics. Baseline KML in Supabase
+   Storage, not local disk (`BASELINE_KML_KEY = '_pipeline/baseline.kml'`, same
+   bucket); `tempfile` is scratch for `geotable.load()` only, nothing persists
+   locally across requests.
 
 ## Business hours (`pipeline/app/hours.py` → `hours_json`)
 
@@ -277,12 +294,82 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   `tests/test_hours_golden.py` runs the same checks offline over the committed
   corpus, including the `!!` gap flag (see "Tests").
 
+## Line breaking (`pipeline/app/display.py` → `display_json`)
+
+Where the freeform Japanese breaks into lines, plus the その他 partition. Same
+override shape as "Business hours", four deliberate differences.
+
+**Why not rules.** Breaking is a *semantic* call: no rule knows `富士急沼津店`
+is a branch of モスバーガー while `やま弥` is the actual name of 駿陽荘, and
+Japanese puts the descriptor before the name about as often as after
+(`旅館 浜の家` vs `グランマ シーサイド店`) → ordering rules don't help either.
+Four rounds of rules left ~9 cases unresolvable; the retired `textLines.ts`
+failed them *confidently*. 152 entries cover it; ~90 further values are a
+single unbreakable token the fast path answers with no entry at all.
+
+- **Two tiers**, not three: `verified` (committed → reviewed in the diff) →
+  `auto` (`auto_lines`, one line per author break, URLs isolated, nothing else
+  decided). No `manual` — that means "local knowledge the source doesn't
+  state", and nothing about a line break is unstated.
+- **The key hashes the *normalized* text — the inverse of `hours.py`, for the
+  inverse reason.** `hours.py` memoizes raw → schedule, cosmetics irrelevant to
+  the output, so hashing raw keeps its key independent of `description.py`.
+  This memoizes text → lines, where the cosmetics *are* the output → the key
+  belongs on its actual input. `description.py`'s normalization isn't
+  injective, so a raw-keyed entry would keep **matching** after a substitution
+  changed the string it describes — silently stale, and the frontend renders
+  these lines now, not the text column. Keyed on normalized text the same edit
+  is a key *miss* → auto tier → `unverified_lines` rises → toast says so.
+- **Per-*field* keys** (`sha1(field \x1f text)[:16]`) → editing 営業時間 leaves
+  that row's 定休日 lines alone, `なし` is reviewed once not 35 times, and adding
+  a field later needs no migration.
+- **`display_text_for` is asymmetric per field, and that tracks source
+  stability.** A `<br>` in a `Description` *is* the author's intended break and
+  its position is stable → survives as a real `\n`. `<name>` whitespace is the
+  opposite: two placemarks carry a literal newline and one run emitted them
+  space-joined (the phantom-marker 1411/1478 lineage) → every run collapses to
+  one space **before** the hash, so both forms key identically. Name-only:
+  full-width ASCII → half-width **except `！`/`？`** (Love Live branding, which
+  officially mixes widths), `㈱` → `(株)`, a space around `&`/`(`/`)`. The other
+  three get none of that — they're full of `（最終入館16:00）` where inserting a
+  space would visibly alter the text.
+- **`entry_problems` is the whole safety story**, shared by the golden test and
+  the generator (which refuses to write what the test would reject). An entry
+  may only *move whitespace* and drop the commas it breaks on: (a) every line's
+  non-droppable characters are a contiguous run of `_text`'s → no reordering,
+  no insertion; (b) the character multiset over `lines + extra` equals
+  `_text`'s after subtracting declared `_duplicate`s → nothing lost, nothing
+  duplicated by accident. Confirmed to catch: a dropped character, a
+  paraphrase, an invented line, a within-line reorder, undeclared duplication,
+  a stale `_duplicate`, a hand-edited `_text`, a URL pulled inline. **A source
+  typo must survive** — `土日祝 10:0～20:00` is what the KML says; fix it upstream,
+  not here.
+- **`extra` = その他**: parking, URLs, phone numbers, stamp placement, admission
+  fees, and end-of-rally markers. Moving the closure markers is only safe
+  because all 8 already set `hours_json.permanently_closed` → the
+  struck-through grey title carries the status; it is now the *only*
+  always-visible closure signal, since その他 starts collapsed. `name` never
+  partitions; 住所 does (3 addresses carry stamp notes). One sanctioned
+  duplication, declared in `_duplicate`: 奥駿河湾日曜市's note fuses placement with a
+  schedule, so it can't leave 定休日 without taking the times with it.
+- Schedule caveats **stay** in 営業時間 (`※予約により変更あり`, `ビル休館日／…`,
+  歴史民俗資料館's `休館日／…`) — only non-schedule material moves.
+- **Regenerate**: `cd pipeline && python tools/gen_display_overrides.py`.
+  Existing keys keep their committed entry; new keys get an auto-tier stub to
+  rewrite. Unions `tests/fixtures/sample.kml`'s keys (see "Tests"), explodes
+  `lines`/`extra` in the dump while compacting `_names`, and prints `!!` for
+  dropped or stale keys. **The git diff of `display_lines.json` *is* the
+  review** — there is no rule baseline to diff against.
+
 ## Frontend (`web/src`)
 
 - **`data/types.ts`** — `Location` mirrors the Postgres row exactly (incl.
-  `stamp`/`badge`, `hours_json`); PostgREST returns all columns by default, no
-  mapping layer. A `jsonb` column arrives as **real nested JSON**, so
-  `hours_json.weekly.thu` is a live array — no parse step, no fetch change.
+  `stamp`/`badge`, `hours_json`, `display_json`); PostgREST returns all columns
+  by default, no mapping layer. A `jsonb` column arrives as **real nested
+  JSON**, so `hours_json.weekly.thu` and `display_json.name` are live arrays —
+  no parse step, no fetch change. `DisplayJson` is mirrored by `CONTRACT_KEYS`
+  in `test_display_golden.py`, `HoursJson` by the one in
+  `test_hours_golden.py`.
 - **`data/supabaseRest.ts`** — shared `API_BASE`/`authHeaders()` for
   `useLocations` (GET) and `useToggleCollected` (PATCH); swapping Supabase
   projects is a two-env-var change here, not code. `authHeaders()` is `async`,
@@ -342,24 +429,15 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   the source text treats 祝日 as its own category (`土日祝`, `日曜日・祝日`);
   `isHoliday()` takes a `YYYY-MM-DD` string, sidestepping Date/timezone
   conversion entirely. ~13 kB gzipped.
-- **`data/textLines.ts`** — `toDisplayLines()`, sole decider of where the
-  freeform Japanese in `name`/`address`/`hours`/`holidays` breaks into lines.
-  Pure → rules pinned offline (`textLines.test.ts`). **Deliberately not in the
-  pipeline** despite those fields being parsed there: breaking is presentation,
-  a pipeline change would need a データ更新 run against production to show up,
-  and `app/hours.py` content-addresses `raw_hours`/`raw_holidays`. Each
-  parenthetical is captured as its own `split()` group → **atomic** (a space or
-  `、` inside never breaks — what stopped ほさか's `（6月～9月 10:00～20:00）`
-  being cut in half by the whitespace rule), and an **unclosed** bracket goes
-  unmatched, so unanticipated text survives whole rather than mangled. Rules:
-  always break after `）` *unless* a non-comma symbol follows (`(不定休)・日`
-  stays together); break before `（` only at **≥10 characters** inside, since a
-  short qualifier like `（L.O.16:30）` reads as part of the time it follows; a
-  comma *outside* brackets is **replaced by** a break, interior ones left
-  alone. Those last two are why no line starts with orphaned punctuation.
-  `breakOnWhitespace`: whitespace is how a source `<br>` arrives
-  (`description.py` converts it) in the three fields, but a space in a `name`
-  is just a space — pass `false` there or `三交イン 沼津駅前` splits in two.
+- **`data/displayLines.ts`** — `linesFor(location, field)` / `extraLines()`.
+  The frontend no longer decides where anything breaks; `display_json` arrives
+  pre-broken (see "Line breaking"). This is only the fallback for a row the
+  pipeline hasn't written — one unbroken line, CSS wraps it — kept in one place
+  rather than four `??` at the call sites. **The rule-based
+  `data/textLines.ts` was deleted**, with its 18 tests: it had to *guess*
+  semantics from punctuation and got ~9 cases wrong that no rule could settle.
+  Cost now knowingly paid, and the reason it was kept in the frontend for so
+  long: a change to a break needs a データ更新 run against production to show up.
 - **`hooks/useLocations.ts`** — fetches once on mount; exposes `setLocations`
   for `useToggleCollected`'s optimistic updates, plus `refreshOne(id)`, a
   targeted `?id=eq.<id>&select=id,stamp,badge` fetch (not a full ~136-row
@@ -397,18 +475,21 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   directly **above** the raw Japanese it came from, so a bad parse shows up in
   ordinary use, not only when someone goes looking. `irregular` notes → ⚠
   caveat lines; `permanently_closed` → struck-through grey title.
-  住所/営業時間/定休日 each sit behind a `CollapsibleField`, **collapsed on
-  open**, expanding independently — photo, name and status badge have to fit a
-  phone screen without scrolling, and one 営業時間 (歴史民俗資料館) runs nine
-  lines by itself. Each field owns its `useState`; the three sit under a
-  wrapper **keyed on `location.id`**, because tapping a second marker leaves
-  this panel mounted and without the key a field stays expanded from the
-  previous location. Header is a full-width flex row → whole line is the tap
-  target (one-handed use while walking), not just the label. Bodies and ⚠ notes
-  carry `textAlign: 'left'` + a 10px gutter against `PANEL_STYLE`'s centered
-  default. Field values and the name go through `toDisplayLines`, the name with
-  `breakOnWhitespace: false`; the address's Maps link still queries the
-  untouched string, breaking being for reading only.
+  住所/営業時間/定休日/その他 each sit behind a `CollapsibleField`, **collapsed
+  on open**, expanding independently — photo, name and status badge have to fit
+  a phone screen without scrolling. Each field owns its `useState`; the four
+  sit under a wrapper **keyed on `location.id`**, because tapping a second
+  marker leaves this panel mounted and without the key a field stays expanded
+  from the previous location. **その他 renders only when non-empty** (~1/3 of
+  locations) → the header count varies by marker. Header is a full-width flex
+  row → whole line is the tap target (one-handed use while walking), not just
+  the label. Bodies and ⚠ notes carry `textAlign: 'left'` + a 10px gutter
+  against `PANEL_STYLE`'s centered default. Field values and the name come from
+  `linesFor()`, already broken; the address's Maps link queries
+  `location.address` — the **untouched** column, since rejoining the lines is
+  lossy (a break consumed the comma it replaced). `WordLines` linkifies a line
+  only when `^https?://` matches the *whole* line, so URL-alone-on-its-line is
+  a checked invariant of the override corpus, not a hope.
 - Leaflet's zoom control defaults top-left → filter panel sits top-right
   (`FilterPanel.tsx`) to avoid overlap.
 
@@ -440,7 +521,11 @@ offline: verified to pass with `socket.connect` blocked and with
   the comment at the top of the file. 12 rather than 6 because
   `validate_structure` rejects >10% of rows missing hours and exactly one entry
   legitimately has no `営業時間` label — a smaller fixture trips the ratio and
-  forces tests to fake the real validator away. Keep that proportion.
+  forces tests to fake the real validator away. Keep that proportion. Also the
+  **only offline source of real 住所 text**, which is why
+  `gen_display_overrides.py` unions its keys with the live KML's — building
+  from the live KML alone would let an upstream edit delete the entry
+  `test_display_golden.py`'s address coverage check depends on.
 - **`test_hours_golden.py` is the highest-value file.** `hours_parsed.json`
   carries `_raw_hours`/`_raw_holidays` beside each expected parse, so it
   doubles as a golden corpus: the rule tier must reproduce 113 of the 125
@@ -448,15 +533,17 @@ offline: verified to pass with `socket.connect` blocked and with
   stale hand-fix is as much a bug as a regression). Also pins every entry
   against the frontend's `HoursJson` shape, and allowlists the 5 entries with a
   legitimate source-text hours gap so a *new* gap fails.
-- **`textLines.test.ts` runs on real corpus strings**, lifted from
-  `hours_parsed.json`'s `_raw_hours`/`_raw_holidays` (post `<br>`→space, the
-  form the panel receives) rather than invented — the ≥10-character threshold
-  only earns its keep at the boundary: `最終入館16:00` and `土日祝は15:00` are
-  9 and stay inline, `土曜日・日曜日を除く` is exactly 10 and breaks. Also pins
-  `・` after `）` suppressing a break where `、` and a digit don't, an unclosed
-  bracket coming back untouched, and ほさか's parenthetical no longer splitting
-  mid-bracket. For new shapes, grep that file for `[（(]` — 20 of the 125
-  entries carry parentheses.
+- **`test_display_golden.py` has no rule-tier-reproduces analogue** — and
+  couldn't: that corpus is authored wholesale, so "entries the rules get wrong"
+  would be *all* of them, and the assertion would detect nothing. Its sharpness
+  comes from content preservation instead (`entry_problems`, see "Line
+  breaking"), plus URL isolation and no-orphaned-punctuation. Parametrized per
+  entry, ids `field:name`. Imports **nothing** from `tools/` — unlike
+  `test_hours_golden.py`, which couples `make test` to the generator. Coverage
+  is checkable offline for three of four fields because `hours_parsed.json`
+  already carries `_raw_hours`/`_raw_holidays`/`_names` for all 136 locations;
+  `address` is why the generator unions `fixtures/sample.kml`'s keys. For new
+  shapes, grep `display_lines.json` for `[（(]`.
 - **`test_db.py` asserts on `UPSERT_SQL` as a string** — the one irreversible
   failure here is `stamp`/`badge` appearing in that query, where a データ更新
   would wipe collection state the source cannot regenerate. Found by checking
