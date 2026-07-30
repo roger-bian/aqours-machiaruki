@@ -479,7 +479,9 @@ single unbreakable token the fast path answers with no entry at all.
   without it the `visibleLocations` memo and `markerIcon`'s module-level cache
   both freeze at page-load time, so rings and the `営業中のみ` filter would
   never update as the clock advances. `now` is threaded to `MapView`,
-  `DetailPanel`, and the filter memo's deps.
+  `DetailPanel`, and the filter memo's deps. Also owns the `L.Map` instance
+  (`ref={setMap}` via `MapView`'s `onMapReady`) and a `visibleIds` set derived
+  from `visibleLocations`, both only for `SearchPanel`.
 - **`panel/FilterPanel.tsx`** — exactly two flat checkboxes, `未獲得`
   (`!stamp || !badge`) and `営業中のみ` (status `open` or `closing_soon`), no
   group headers; they **stack (AND)**. `App.tsx`'s `FILTER_KEYS` validates
@@ -504,8 +506,45 @@ single unbreakable token the fast path answers with no entry at all.
   lossy (a break consumed the comma it replaced). `WordLines` linkifies a line
   only when `^https?://` matches the *whole* line, so URL-alone-on-its-line is
   a checked invariant of the override corpus, not a hope.
-- Leaflet's zoom control defaults top-left → filter panel sits top-right
-  (`FilterPanel.tsx`) to avoid overlap.
+- **`data/searchLocations.ts`** — `searchLocations(locations, query)`, pure,
+  behind the magnifying glass. A `.ts` module, not component-internal, because
+  `vitest.config.ts`'s `include` is `src/**/*.test.ts` — `.tsx` is deliberately
+  unmatched, so component-held logic is untestable by construction. Haystack is
+  the raw `name` **and** `linesFor(loc,'name').join('')`: either alone loses
+  matches — a query crossing the space in `海鮮丼と魚河岸定食 かもめ丸` needs
+  the raw column, and a break can consume the separator it replaced, so a
+  query crossing *that* needs the joined lines. Folded through
+  `NFKC` + lowercase + whitespace-stripped — `display.py` half-widths ASCII in
+  `name` (except `！`/`？`) while the raw column keeps the KML's widths, so one
+  shop reaches the frontend spelled two ways. An **all-digit query is a stamp-
+  number *prefix*** (`1` → 1, 10-19, 100+; `12` narrows) so typing converges;
+  a number hit outranks a name hit. Returns every match, uncapped — the 5-plus-
+  overflow split is the panel's. Also exports what the panel needs to **bold**
+  the matched run: `numberMatchLength` (the digit rule, one copy, so the search
+  and the bolding can't disagree) and `matchRange`, which folds one character
+  at a time keeping each output character's source span — matching is on folded
+  text, the highlight has to land on unfolded. A match straddling whitespace
+  therefore bolds *through* it in one piece, and per-character NFKC can differ
+  from whole-string, so `matchRange` may return null on a row `searchLocations`
+  matched → renders unbolded, never wrong.
+- **`panel/SearchPanel.tsx`** — top-left magnifier → centered floating bar,
+  live suggestions, ≤5 rows + a faint `…` row (rendered **only** past 5) →
+  second window listing match 6 onward. Picking one does
+  `map.flyTo(…, 17)` + `onSelect(id)` (which *is* opening `DetailPanel`) then
+  closes — the card and `DetailPanel` are both z-1000 and must never coexist.
+  Searches **all** locations, not `visibleLocations`: a filtered-out hit still
+  opens its panel, and is greyed with a `非表示` tag since its pin is off the
+  map. Lives in `panel/` reached by a `ref`, **not** inside `MapContainer` with
+  `useMap()` like `LocateButton` — it needs the unfiltered `locations`,
+  `visibleIds` and `onSelect` (none of which `MapView` has), and a text input
+  inside `.leaflet-container` has its keyboard/scroll events eaten by Leaflet's
+  handlers. Reuses `Backdrop` (z-999) rather than a second dimmer.
+- Leaflet's zoom control is **off** (`zoomControl={false}` in `MapView.tsx`) —
+  pinch/scroll-wheel already do that job on both targets, and top-left is now
+  the search button. Filter panel stays top-right (`FilterPanel.tsx`). Zoom 17
+  is the shared "street level" figure, in `LocateButton`'s `SURROUNDINGS_ZOOM`
+  and `SearchPanel`'s `RESULT_ZOOM` — deliberately two consts, cross-referenced
+  by comment, rather than a module holding one number.
 
 ## Tests
 
