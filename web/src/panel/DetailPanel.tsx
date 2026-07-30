@@ -69,6 +69,16 @@ function CollapsibleField({ label, children }: { label: string; children: React.
   );
 }
 
+// long URLs have no spaces to wrap on; without this a link line overflows
+// the panel width and creates a horizontal scrollbar instead of just clipping
+const LINK_STYLE: React.CSSProperties = {
+  display: 'block',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+  maxWidth: '100%',
+};
+
 /** Pre-broken lines (see pipeline/app/display.py), bare URLs turned into links.
  *  The link check is anchored, so a URL has to occupy its whole line - which is
  *  an invariant of the override corpus, not a hope. */
@@ -78,7 +88,7 @@ function WordLines({ lines }: { lines: string[] }) {
       {lines.map((line, i) => (
         <span key={i}>
           {URL_PATTERN.test(line) ? (
-            <a href={line} target="_blank" rel="noopener noreferrer">
+            <a href={line} target="_blank" rel="noopener noreferrer" style={LINK_STYLE}>
               {line}
             </a>
           ) : (
