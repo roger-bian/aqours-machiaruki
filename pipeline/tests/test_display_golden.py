@@ -57,7 +57,8 @@ def test_entry_satisfies_the_content_contract(key, entry):
 
 @pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)
 def test_entry_carries_only_known_keys(key, entry):
-    allowed = set(_REVIEW_KEYS) | {'lines', 'extra', 'confidence'}
+    allowed = set(_REVIEW_KEYS) | {'lines', 'extra', 'to_holidays',
+                                  'confidence'}
     assert set(entry) <= allowed
 
 
@@ -65,6 +66,16 @@ def test_no_entry_is_auto():
     """`auto` is what the absence of an entry means, so it must never be
     committed - the same by-construction property hours_parsed.json has."""
     assert [k for k, e in ENTRIES if e['confidence'] != 'verified'] == []
+
+
+def test_only_hours_entries_re_home_closure_days():
+    """営業時間 → 定休日 is the only cross-field move, and only three locations
+    need it: each writes its closures into the opening-hours text and carries no
+    定休日 label at all, so 定休日 used to read なし directly above them."""
+    movers = {k: e['_names'][0] for k, e in ENTRIES if e.get('to_holidays')}
+    assert set(movers) == {'cb1ddb425ab60efd', '4ed0c3c91793cd27',
+                           'dd05de311ee45434'}
+    assert all(OVERRIDES[k]['_field'] == 'hours' for k in movers)
 
 
 def test_only_the_expected_entry_declares_a_duplicate():
@@ -180,12 +191,13 @@ def test_text_with_nothing_to_decide_is_verified_without_an_entry():
     keep `unverified_lines` permanently non-zero."""
     assert no_break_candidate('なし')
     assert display_lines_for('holidays', 'なし') == {
-        'lines': ['なし'], 'extra': [], 'confidence': 'verified'}
+        'lines': ['なし'], 'extra': [], 'to_holidays': [],
+        'confidence': 'verified'}
 
 
 def test_empty_text_produces_no_lines():
     assert display_lines_for('hours', '') == {
-        'lines': [], 'extra': [], 'confidence': 'verified'}
+        'lines': [], 'extra': [], 'to_holidays': [], 'confidence': 'verified'}
 
 
 # --- the column value ------------------------------------------------------
@@ -196,6 +208,30 @@ def test_build_display_json_matches_the_frontend_contract():
     assert set(value) == CONTRACT_KEYS
     assert all(isinstance(value[f], list) for f in FIELDS)
     assert value['confidence'] == 'verified'
+
+
+def test_closure_days_move_from_hours_to_holidays():
+    """The 歴史民俗資料館 case: four 休館日 clauses out of 営業時間, and the
+    invented なし placeholder dropped rather than left contradicting them."""
+    value = build_display_json({
+        'name': '沼津市歴史民俗資料館', 'address': '沼津市下香貫島郷2802-1',
+        'hours': '9:00～16:00<br>休館日／毎週月曜日（祝日は開館）、毎月最終の平日、'
+                 '祝日の翌日（土曜日・日曜日を除く）、年末年始（12月29日～1月3日）'
+                 '<br>入館料／無料（※ただし御用邸記念公園への入園料大人100円、'
+                 '小・中学生50円が必要です）',
+        'holidays': ''})
+    assert value['hours'] == ['9:00～16:00']
+    assert value['holidays'] == ['休館日／毎週月曜日（祝日は開館）', '毎月最終の平日',
+                                 '祝日の翌日（土曜日・日曜日を除く）',
+                                 '年末年始（12月29日～1月3日）']
+    assert 'なし' not in value['holidays']
+    assert value['extra'][0] == '入館料／無料'
+
+
+def test_the_holidays_placeholder_survives_when_nothing_moves():
+    """`なし` is only dropped to make room for real closure days."""
+    value = build_display_json({'name': 'x', 'address': '', 'hours': '', 'holidays': ''})
+    assert value['holidays'] == ['なし']
 
 
 def test_one_unreviewed_field_marks_the_whole_location():
@@ -233,7 +269,7 @@ def test_the_corpus_is_sorted_and_stably_ordered():
         raw = json.load(f)
     assert list(raw) == sorted(raw)
     order = ['_field', '_names', '_raw', '_text', '_comment', '_duplicate',
-             'lines', 'extra', 'confidence']
+             'lines', 'extra', 'to_holidays', 'confidence']
     for entry in raw.values():
         assert list(entry) == [k for k in order if k in entry]
 

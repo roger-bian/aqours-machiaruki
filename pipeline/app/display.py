@@ -1,5 +1,10 @@
-"""Decide where the freeform Japanese text breaks into lines, and split the
-extraneous material out of 営業時間 / 定休日 into its own section.
+"""Decide where the freeform Japanese text breaks into lines, and re-home the
+material the source filed under the wrong heading.
+
+An entry's content leaves it by one of three routes: `lines` (stays in its own
+field), `extra` (→ その他) and `to_holidays` (営業時間 → 定休日, for closure days
+the source wrote into its opening-hours text). All three count toward
+reconstructing the source text, which is what keeps a move from becoming a loss.
 
 Two tiers, in order (see `display_lines_for`):
 
@@ -41,6 +46,10 @@ _OVERRIDES_PATH = os.path.join(os.path.dirname(__file__), 'display_lines.json')
 _REVIEW_KEYS = ('_field', '_names', '_raw', '_text', '_comment', '_duplicate')
 
 URL = re.compile(r'https?://\S+')
+
+# what normalize_holidays() invents when the source carries no 定休日 label
+# at all - a claim of "no closing days" the source never made
+HOLIDAYS_PLACEHOLDER = 'なし'
 
 # whitespace in any of the forms the source uses: ASCII, ideographic (U+3000)
 # and no-break (U+00A0). The last one is not collapsible HTML whitespace, so
@@ -165,19 +174,22 @@ def auto_lines(text):
 
 
 def display_lines_for(field, raw):
-    """Returns `{'lines': [...], 'extra': [...], 'confidence': ...}`."""
+    """Returns `{'lines', 'extra', 'to_holidays', 'confidence'}` - the field's
+    own lines plus the two destinations content can be moved to."""
     text = display_text_for(field, raw)
     entry = OVERRIDES.get(display_key(field, text))
     if entry is not None:
         return {
             'lines': list(entry['lines']),
             'extra': list(entry.get('extra', [])),
+            'to_holidays': list(entry.get('to_holidays', [])),
             'confidence': entry['confidence'],
         }
     if no_break_candidate(text):
         return {'lines': [text] if text else [], 'extra': [],
-                'confidence': 'verified'}
-    return {'lines': auto_lines(text), 'extra': [], 'confidence': 'auto'}
+                'to_holidays': [], 'confidence': 'verified'}
+    return {'lines': auto_lines(text), 'extra': [], 'to_holidays': [],
+            'confidence': 'auto'}
 
 
 def dense(text):
@@ -203,6 +215,11 @@ def entry_problems(key, entry):
     text = entry['_text']
     lines = entry['lines']
     extra = entry.get('extra', [])
+    # closure days written into the 営業時間 text belong under 定休日; they leave
+    # this entry entirely, so they count toward reconstructing _text like any
+    # other destination
+    to_holidays = entry.get('to_holidays', [])
+    outbound = lines + extra + to_holidays
     duplicated = entry.get('_duplicate', [])
 
     if display_text_for(field, entry['_raw']) != text:
@@ -215,12 +232,14 @@ def entry_problems(key, entry):
     # あります)`), so it partitions like the other two. Only `name` never does.
     if extra and field == 'name':
         problems.append('name carries extra')
+    if to_holidays and field != 'hours':
+        problems.append(f'{field} carries to_holidays')
     if no_break_candidate(text):
         problems.append('no-break-candidate text needs no entry')
 
     # every line traceable to a contiguous run of the source's real characters:
     # no reordering inside a line, nothing inserted
-    for line in lines + extra:
+    for line in outbound:
         if not line.strip():
             problems.append('empty line')
         elif line != line.strip():
@@ -233,7 +252,7 @@ def entry_problems(key, entry):
     # nothing lost and nothing duplicated by accident. Declared duplicates are
     # subtracted first; the one real case is a note that fuses stamp placement
     # with a schedule, so it has to appear in both the field and その他.
-    observed = list(dense(''.join(lines) + ''.join(extra)))
+    observed = list(dense(''.join(outbound)))
     for line in duplicated:
         if line not in lines or line not in extra:
             problems.append(f'_duplicate not in both lines and extra: {line!r}')
@@ -246,7 +265,7 @@ def entry_problems(key, entry):
     # DetailPanel's link check is anchored, so a URL sharing a line with other
     # text silently stops being clickable
     for url in URL.findall(text):
-        if url not in lines + extra:
+        if url not in outbound:
             problems.append(f'URL is not on a line of its own: {url}')
 
     return problems
@@ -258,12 +277,27 @@ def build_display_json(raw_by_field):
     `confidence` is the worst of the four fields, so one un-reviewed field marks
     the whole location for review. `extra` is concatenated in FIELDS order,
     which puts 営業時間's extras ahead of 定休日's.
+
+    Closure days the source wrote into its 営業時間 text (`休館日／毎週月曜日…`,
+    `ビル休館日／年末年始、点検日`) are re-homed into 定休日 through the 営業時間
+    entry's `to_holidays`. Three locations state their closures only there and
+    carry no 定休日 label at all, so the panel showed a 定休日 of `なし` -
+    `normalize_holidays`'s own default, not the source's word - directly above an
+    営業時間 listing the very closures it denied. That placeholder is dropped
+    when real closure lines arrive; keeping both would only relocate the
+    contradiction.
     """
+    results = {f: display_lines_for(f, raw_by_field.get(f, '')) for f in FIELDS}
+    moved = [line for f in FIELDS for line in results[f]['to_holidays']]
+
     out = {'extra': [], 'confidence': 'verified'}
     for field in FIELDS:
-        result = display_lines_for(field, raw_by_field.get(field, ''))
-        out[field] = result['lines']
-        out['extra'].extend(result['extra'])
-        if result['confidence'] == 'auto':
+        out[field] = list(results[field]['lines'])
+        out['extra'].extend(results[field]['extra'])
+        if results[field]['confidence'] == 'auto':
             out['confidence'] = 'auto'
+    if moved:
+        if out['holidays'] == [HOLIDAYS_PLACEHOLDER]:
+            out['holidays'] = []
+        out['holidays'].extend(moved)
     return out

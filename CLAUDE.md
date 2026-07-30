@@ -337,27 +337,41 @@ single unbreakable token the fast path answers with no entry at all.
   the generator (which refuses to write what the test would reject). An entry
   may only *move whitespace* and drop the commas it breaks on: (a) every line's
   non-droppable characters are a contiguous run of `_text`'s → no reordering,
-  no insertion; (b) the character multiset over `lines + extra` equals
+  no insertion; (b) the character multiset over all three destinations equals
   `_text`'s after subtracting declared `_duplicate`s → nothing lost, nothing
   duplicated by accident. Confirmed to catch: a dropped character, a
   paraphrase, an invented line, a within-line reorder, undeclared duplication,
   a stale `_duplicate`, a hand-edited `_text`, a URL pulled inline. **A source
   typo must survive** — `土日祝 10:0～20:00` is what the KML says; fix it upstream,
   not here.
+- **Three destinations, not two.** Content leaves an entry by `lines` (stays in
+  its own field), `extra` (→ その他) or **`to_holidays`** (営業時間 → 定休日,
+  `hours` entries only). All three count toward reconstructing `_text`, which
+  is what stops a move becoming a loss. `to_holidays` exists because 3
+  locations write their closure days into the 営業時間 text (`休館日／毎週月曜日…`,
+  `ビル休館日／年末年始、点検日`, `（休館日あり）`) and carry **no 定休日 label at
+  all** → the panel showed a 定休日 of `なし`, invented by `normalize_holidays`
+  rather than stated by the source, directly above 営業時間 listing the very
+  closures it denied. `build_display_json` drops that `HOLIDAYS_PLACEHOLDER`
+  when real closure lines arrive; keeping both only moves the contradiction.
+  Caveats that are genuinely about *hours* stay put (`※予約により変更あり`,
+  `※ご来館の際には最新の営業時間を…`).
 - **`extra` = その他**: parking, URLs, phone numbers, stamp placement, admission
   fees, and end-of-rally markers. Moving the closure markers is only safe
   because all 8 already set `hours_json.permanently_closed` → the
   struck-through grey title carries the status; it is now the *only*
   always-visible closure signal, since その他 starts collapsed. `name` never
   partitions; 住所 does (3 addresses carry stamp notes). One sanctioned
-  duplication, declared in `_duplicate`: 奥駿河湾日曜市's note fuses placement with a
-  schedule, so it can't leave 定休日 without taking the times with it.
-- Schedule caveats **stay** in 営業時間 (`※予約により変更あり`, `ビル休館日／…`,
-  歴史民俗資料館's `休館日／…`) — only non-schedule material moves.
+  duplication, declared in `_duplicate`: 奥駿河湾日曜市's note fuses placement
+  with a schedule, so it can't leave 定休日 without taking the times with it.
+- `hours_json` already parsed those closures correctly (歴史民俗資料館's ring
+  has always known about `mon` and 年末年始) — this was a *display*
+  contradiction only, exactly the class of bug the panel's "computed status
+  above the raw text" layout exists to expose.
 - **Regenerate**: `cd pipeline && python tools/gen_display_overrides.py`.
   Existing keys keep their committed entry; new keys get an auto-tier stub to
   rewrite. Unions `tests/fixtures/sample.kml`'s keys (see "Tests"), explodes
-  `lines`/`extra` in the dump while compacting `_names`, and prints `!!` for
+  the destination arrays while compacting `_names`, and prints `!!` for
   dropped or stale keys. **The git diff of `display_lines.json` *is* the
   review** — there is no rule baseline to diff against.
 

@@ -36,11 +36,11 @@ FIXTURE = os.path.join(os.path.dirname(__file__), '..', 'tests', 'fixtures',
 
 # stable field order so git diffs stay readable
 ORDER = ['_field', '_names', '_raw', '_text', '_comment', '_duplicate',
-         'lines', 'extra', 'confidence']
+         'lines', 'extra', 'to_holidays', 'confidence']
 
-# `lines` and `extra` are what a reviewer reads, so they stay exploded even
-# though _dump would happily compact them onto one line
-EXPLODE = ('lines', 'extra')
+# the destination arrays are what a reviewer reads, so they stay exploded
+# even though _dump would happily compact them onto one line
+EXPLODE = ('lines', 'extra', 'to_holidays')
 
 
 def _dump(obj):
