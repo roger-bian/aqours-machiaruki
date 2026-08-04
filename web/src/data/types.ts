@@ -18,6 +18,10 @@ export type HoursJson = {
   closed_nth: { day: DayKey; nth: number[] }[];
   /** `MM-DD`, e.g. the 年末年始 shutdown */
   closed_dates: string[];
+  /** the source states that a 祝日 lifts the weekday closures above (`月曜日
+   *  （祝日は開館）`). Hand-reviewed entries only - a plain `火曜日` shuts every
+   *  Tuesday, 海の日 included */
+  hol_overrides_closed: boolean;
   always_open: boolean;
   /** 不定休 / 臨時休館 - daily hours are known but closures are not */
   irregular: boolean;

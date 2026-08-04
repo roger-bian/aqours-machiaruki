@@ -26,6 +26,7 @@ function hours(overrides: Partial<HoursJson> = {}): HoursJson {
     closed: [],
     closed_nth: [],
     closed_dates: [],
+    hol_overrides_closed: false,
     always_open: false,
     irregular: false,
     permanently_closed: false,
@@ -123,6 +124,35 @@ describe('holidays', () => {
     }), 2026, 7)
     expect(on(weekendsOnly, '2026-07-20')).toBe('closed')
     expect(on(weekendsOnly, '2026-07-18')).toBe('open') // Saturday
+  })
+
+  it('keeps a 定休日 shut on a day that is also a 祝日', () => {
+    // 古安 (#120): blanket 8:30~18:30 fills 'hol' too, so 山の日 on a Tuesday
+    // used to show 営業 in the grid against a 定休日 of 火曜日
+    const closedTuesdays = buildMonthGrid(hours({
+      weekly: weekly({
+        mon: [[510, 1110]], wed: [[510, 1110]], thu: [[510, 1110]],
+        fri: [[510, 1110]], sat: [[510, 1110]], sun: [[510, 1110]],
+        hol: [[510, 1110]],
+      }),
+      closed: ['tue'],
+    }), 2026, 8)
+    // Tuesdays in Aug 2026: 4, 11 (山の日), 18, 25
+    for (const day of ['04', '11', '18', '25']) {
+      expect(on(closedTuesdays, `2026-08-${day}`), day).toBe('closed')
+    }
+    expect(closedTuesdays.unknownDays).toEqual([])
+  })
+
+  it('opens the 祝日 where the source lifts the closure', () => {
+    // 沼津市歴史民俗資料館: 休館日 毎週月曜日（祝日は開館）
+    const grid = buildMonthGrid(hours({
+      weekly: { ...everyDay([540, 960]), mon: [] },
+      closed: ['mon'],
+      hol_overrides_closed: true,
+    }), 2026, 7)
+    expect(on(grid, '2026-07-20')).toBe('open') // 海の日, a Monday
+    expect(on(grid, '2026-07-13')).toBe('closed') // an ordinary Monday
   })
 
   it('still matches an nth-week rule against the calendar weekday', () => {
@@ -261,6 +291,17 @@ describe('agreement with openStatusFor', () => {
     ['weekday fallback', hours({
       weekly: weekly({ sat: [[600, 960]], sun: [[600, 960]] }),
       closed: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    })],
+    // 山の日 falls on a Tuesday in Aug 2026, so these two exercise both readings
+    // of a closure that collides with a 祝日
+    ['定休日 over a 祝日', hours({
+      weekly: { ...everyDay([510, 1110]), tue: [] },
+      closed: ['tue'],
+    })],
+    ['祝日 lifting a 定休日', hours({
+      weekly: { ...everyDay([510, 1110]), tue: [] },
+      closed: ['tue'],
+      hol_overrides_closed: true,
     })],
   ]
 

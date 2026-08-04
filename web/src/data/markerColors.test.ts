@@ -18,6 +18,7 @@ function hours(overrides: Partial<HoursJson> = {}): HoursJson {
     closed: [],
     closed_nth: [],
     closed_dates: [],
+    hol_overrides_closed: false,
     always_open: false,
     irregular: false,
     permanently_closed: false,

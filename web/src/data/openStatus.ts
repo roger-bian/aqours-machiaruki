@@ -25,17 +25,20 @@ type JstParts = {
   monthDay: string; // MM-DD
   dayOfMonth: number;
   weekday: DayKey; // the calendar weekday, ignoring holidays
+  isHoliday: boolean;
   minutes: number; // minutes since midnight
 };
 
 function jstParts(at: Date): JstParts {
   const p: Record<string, string> = {};
   for (const { type, value } of JST.formatToParts(at)) p[type] = value;
+  const date = `${p.year}-${p.month}-${p.day}`;
   return {
-    date: `${p.year}-${p.month}-${p.day}`,
+    date,
     monthDay: `${p.month}-${p.day}`,
     dayOfMonth: Number(p.day),
     weekday: WEEKDAYS[p.weekday],
+    isHoliday: holidayJp.isHoliday(date),
     minutes: Number(p.hour) * 60 + Number(p.minute),
   };
 }
@@ -47,17 +50,18 @@ function statesHolidays(h: HoursJson): boolean {
   return (h.weekly?.hol ?? []).length > 0 || h.closed.includes('hol');
 }
 
-/** The schedule key for a date: 'hol' on a Japanese public holiday (which the
- *  source text treats as its own category in `土日祝` / `日曜日・祝日`),
- *  otherwise the weekday.
+/** Which day's *hours* apply to a date: 'hol' on a Japanese public holiday
+ *  (which the source text treats as its own category in `土日祝` /
+ *  `日曜日・祝日`), otherwise the weekday. Closures are read separately, off the
+ *  calendar - see isClosedOn.
  *
  *  Falls back to the weekday on a holiday the source never mentioned. 明治茶館
- *  is 定休日 月～金 with no 祝日 hours: read as 'hol' that shop's Tuesday holiday
- *  escaped its own stated closure and became unknown, when 月～金 plainly covers
- *  it. Only 2 entries take this path - the other 122 either state 祝日 hours or
- *  state 祝日 closed. */
+ *  states 土曜・日曜 hours and no 祝日 ones: read as 'hol' a Saturday holiday
+ *  landed on an empty schedule and became 営業時間不明, when the source plainly
+ *  gave that day hours. Only 2 entries take this path - the other 122 either
+ *  state 祝日 hours or state 祝日 closed. */
 function scheduleKey(h: HoursJson, parts: JstParts): DayKey {
-  if (!holidayJp.isHoliday(parts.date)) return parts.weekday;
+  if (!parts.isHoliday) return parts.weekday;
   return statesHolidays(h) ? 'hol' : parts.weekday;
 }
 
@@ -66,7 +70,7 @@ function scheduleKey(h: HoursJson, parts: JstParts): DayKey {
  *  the two deliberately disagree on a holiday whose schedule was never given. */
 export function dayKeyInJst(at: Date): DayKey {
   const parts = jstParts(at);
-  return holidayJp.isHoliday(parts.date) ? 'hol' : parts.weekday;
+  return parts.isHoliday ? 'hol' : parts.weekday;
 }
 
 // holiday_jp's own date-keyed map. Read directly rather than via `between()`,
@@ -99,11 +103,24 @@ export function minutesInJst(at: Date): number {
   return jstParts(at).minutes;
 }
 
-function isClosedOn(h: HoursJson, parts: JstParts, key: DayKey): boolean {
+/** Whether a date is a stated closure. Read off the **calendar weekday**, never
+ *  the schedule key: `定休日 火曜日` shuts every Tuesday, including one that
+ *  happens to be 海の日. Keying this on 'hol' let a holiday void the closure
+ *  whenever the location also had 祝日 hours - which blanket hours like 古安's
+ *  `8:30~18:30` fill in for every day, so 火曜日 + a holiday read 営業 against the
+ *  very text stating the closure. Only what the source actually wrote lifts a
+ *  weekday closure (`月曜日（祝日は開館）`), and that arrives as
+ *  `hol_overrides_closed`. */
+function isClosedOn(h: HoursJson, parts: JstParts): boolean {
+  // a stated date wins outright, flag or not: 年末年始 spans 元日, and 休館 on
+  // 元日 is precisely what those two museums wrote down
   if (h.closed_dates.includes(parts.monthDay)) return true;
-  if (h.closed.includes(key)) return true;
-  // 第二・第四火曜日 - the rule is about the calendar weekday, so it is matched
-  // against parts.weekday rather than the (possibly 'hol') schedule key
+  if (parts.isHoliday) {
+    if (h.closed.includes('hol')) return true;
+    if (h.hol_overrides_closed) return false;
+  }
+  if (h.closed.includes(parts.weekday)) return true;
+  // 第二・第四火曜日 - a weekday closure like any other, counted on the calendar
   const nth = Math.floor((parts.dayOfMonth - 1) / 7) + 1;
   return h.closed_nth.some(
     (r) => r.day === parts.weekday && r.nth.includes(nth),
@@ -160,7 +177,7 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
 
   const today = jstParts(now);
   const todayKey = scheduleKey(h, today);
-  const openToday = !isClosedOn(h, today, todayKey);
+  const openToday = !isClosedOn(h, today);
   if (openToday) {
     const status = statusWithin(h.weekly[todayKey] ?? [], today.minutes);
     if (status) return status;
@@ -170,7 +187,7 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
   // belongs to the previous day, so early-morning "now" has to look back.
   const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   const yesterdayKey = scheduleKey(h, yesterday);
-  if (!isClosedOn(h, yesterday, yesterdayKey)) {
+  if (!isClosedOn(h, yesterday)) {
     const status = statusWithin(
       overnightIntervals(h, yesterdayKey), today.minutes + 1440,
     );
@@ -197,7 +214,7 @@ export function closingTimeFor(h: HoursJson | null, now: Date): string | null {
 
   const today = jstParts(now);
   const todayKey = scheduleKey(h, today);
-  if (!isClosedOn(h, today, todayKey)) {
+  if (!isClosedOn(h, today)) {
     // only a real minute formats; 'open_ended' falls through to null, which
     // already means "cannot say" to every caller
     const end = endOfIntervalAt(h.weekly[todayKey] ?? [], today.minutes);
@@ -206,7 +223,7 @@ export function closingTimeFor(h: HoursJson | null, now: Date): string | null {
 
   const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
   const yesterdayKey = scheduleKey(h, yesterday);
-  if (!isClosedOn(h, yesterday, yesterdayKey)) {
+  if (!isClosedOn(h, yesterday)) {
     const end = endOfIntervalAt(
       overnightIntervals(h, yesterdayKey), today.minutes + 1440,
     );
@@ -233,7 +250,7 @@ export function dayOpennessFor(h: HoursJson, date: string): DayOpenness {
 
   const parts = jstParts(new Date(`${date}T00:00:00+09:00`));
   const key = scheduleKey(h, parts);
-  if (isClosedOn(h, parts, key)) return 'closed';
+  if (isClosedOn(h, parts)) return 'closed';
   // no hours and no stated closure - the source is silent, not negative
   return (h.weekly[key] ?? []).length > 0 ? 'open' : 'unknown';
 }

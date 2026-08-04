@@ -26,6 +26,7 @@ function hours(overrides: Partial<HoursJson> = {}): HoursJson {
     closed: [],
     closed_nth: [],
     closed_dates: [],
+    hol_overrides_closed: false,
     always_open: false,
     irregular: false,
     permanently_closed: false,
@@ -221,6 +222,60 @@ describe('a holiday the source never mentioned', () => {
       closed: ['hol'],
     })
     expect(openStatusFor(statedClosed, jst('2026-07-20T12:00'))).toBe('closed')
+  })
+})
+
+// 古安 (#120): 営業時間 8:30~18:30 with no day scope, 定休日 火曜日. The blanket
+// hours fill every day including 'hol', so reading the closure off the schedule
+// key let 山の日 on a Tuesday escape the 定休日 and paint a green ring - straight
+// above the 火曜日 the panel was displaying.
+describe('a stated closure landing on a holiday', () => {
+  const closedTuesdays = hours({
+    weekly: weekly({
+      mon: [[510, 1110]], wed: [[510, 1110]], thu: [[510, 1110]],
+      fri: [[510, 1110]], sat: [[510, 1110]], sun: [[510, 1110]],
+      hol: [[510, 1110]],
+    }),
+    closed: ['tue'],
+  })
+
+  it('still closes, 祝日 hours or not', () => {
+    // 2026-08-11 is 山の日 and a Tuesday
+    expect(openStatusFor(closedTuesdays, jst('2026-08-11T12:00'))).toBe('closed')
+    expect(closingTimeFor(closedTuesdays, jst('2026-08-11T12:00'))).toBeNull()
+    expect(openStatusFor(closedTuesdays, jst('2026-08-04T12:00'))).toBe('closed')
+    expect(openStatusFor(closedTuesdays, jst('2026-08-10T12:00'))).toBe('open')
+  })
+
+  it('opens where the source itself lifts the closure', () => {
+    // 沼津市歴史民俗資料館: 休館日 毎週月曜日（祝日は開館）; 2026-07-20 is 海の日
+    const holOpen = hours({
+      weekly: { ...everyDay([540, 960]), mon: [] },
+      closed: ['mon'],
+      hol_overrides_closed: true,
+    })
+    expect(openStatusFor(holOpen, jst('2026-07-20T12:00'))).toBe('open')
+    expect(closingTimeFor(holOpen, jst('2026-07-20T12:00'))).toBe('16:00')
+    expect(openStatusFor(holOpen, jst('2026-07-13T12:00'))).toBe('closed')
+  })
+
+  it('lifts an nth-week closure the same way', () => {
+    // 第3月曜日 fires on 海の日 without the flag (see above); with it, the same
+    // sentence that stated the closure exempted the holiday
+    const nth = hours({
+      closed_nth: [{ day: 'mon', nth: [3] }],
+      hol_overrides_closed: true,
+    })
+    expect(openStatusFor(nth, jst('2026-07-20T12:00'))).toBe('open')
+  })
+
+  it('keeps a stated date shut even so', () => {
+    // both flagged museums close 12-29~01-03, which spans 元日 - a named date is
+    // the more specific statement, so it outranks the flag
+    const museum = hours({
+      closed: ['mon'], closed_dates: ['01-01'], hol_overrides_closed: true,
+    })
+    expect(openStatusFor(museum, jst('2026-01-01T12:00'))).toBe('closed')
   })
 })
 
