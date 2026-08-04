@@ -77,7 +77,7 @@ local uses plain `GRANT`s).
   `adb install -r app/build/outputs/apk/debug/app-debug.apk`. Keystore creds in
   `android/keystore.properties` (gitignored); README.md covers setup + wiring
   `web/public/.well-known/assetlinks.json`.
-- **Tests**: `make test` = both suites (~2s, fully offline — no network, no
+- **Tests**: `make test` = both suites (~12s, fully offline — no network, no
   DB). `make test-py` = `cd pipeline && python -m pytest`; `make test-web` =
   `cd web && npm test` (vitest). pytest needs
   `pip install -r pipeline/requirements-dev.txt` once — deliberately not in
@@ -290,15 +290,33 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   opening time. Inventing an end is the other wrong answer: the ring claims
   まもなく閉店 at an hour nobody wrote. Frontend: `'open'`, never `closing_soon`,
   never overnight.
-- **`hol_overrides_closed` = "a 祝日 lifts this location's weekday closures"**,
-  written *only* by the override tier (4 entries: 欧蘭陀館, ゆきちゃん, 歴史民俗
-  資料館, 芹沢記念館 — each states `祝日は開館`/`祝日の場合は翌日`). The rule tier
-  always emits `false`: a plain `火曜日` shuts every Tuesday, 海の日 included, and
-  lifting a stated closure off a parenthetical is a judgement call — same
-  reasoning as the null interval end, same golden-test guard (`true` ⇒
-  `confidence != 'auto'`, plus a `notes` caveat and a closure to lift).
-  Frontend: `isClosedOn` reads closures off the **calendar weekday**, `closed_dates`
-  still outranking the flag (both museums' 年末年始 spans 元日).
+- **Four flags say where a closure *goes*** — the only fields here that undo,
+  move or add one rather than reading it off the text, so all four are override
+  tier only and the rule tier always emits `false`. Same 4 entries throughout:
+  - `hol_overrides_closed` — `月曜日（祝日は開館）`: the holiday itself is open.
+  - `hol_defers_closed` — `月曜日（祝日の場合は翌日）`: **and** the closure moves to
+    the next day that isn't itself a holiday (欧蘭陀館, ゆきちゃん). Implies
+    `hol_overrides_closed`.
+  - `closed_after_hol` — `祝日の翌日（土曜日・日曜日を除く）`: the day after *any*
+    holiday is shut, not just one hitting the 定休日 (歴史民俗資料館, 芹沢記念館).
+    Distinct from a deferral on purpose — 欧蘭陀館 does **not** shut the Wednesday
+    after a Tuesday holiday, and the museums do.
+  - `closed_last_weekday` — `毎月最終の平日` (歴史民俗資料館 only). Not
+    `closed_nth`: it's whichever weekday happens to fall last. Whether 平日
+    excludes a 祝日 is unstated and unreachable — no 2026 month has a holiday as
+    its last Mon–Fri, and `hol_overrides_closed` answers "open" first anyway.
+  Why hand-reviewed: a plain `火曜日` shuts every Tuesday, 海の日 included, and
+  moving a closure off a phrase buried in a parenthetical is a judgement call —
+  same reasoning as the null interval end, same golden-test guard (any `true` ⇒
+  `confidence != 'auto'` + a `notes` caveat; a deferral also needs
+  `hol_overrides_closed` and a `closed` weekday to carry). `notes` stay even
+  once a rule is modelled: the grid renders a grey cell, never a *why*.
+- **A deferral chains past a whole holiday run.** 2026-05-04 is 欧蘭陀館's closed
+  Monday *and* みどりの日, 05-05/06 are holidays too → the closure lands on
+  Thursday the 7th; likewise 09-21 → 09-24. Keeps the weekly closing day rather
+  than letting it evaporate, and lands on the very day 芹沢's own
+  `休日の翌日（土曜日・日曜日・休日を除く）` reaches by its own sentence → all four
+  entries agree about GW and 敬老の日 week.
 - **`平日` covers 土曜 when 土 is never mentioned** (post-pass at the end of
   `_parse_hours`). Older usage — 平日 = "not Sunday/holiday", the six-day week.
   市川/つじ写真館 write `平日` + `日祝` and never name 土曜, so their Saturdays fell through
@@ -501,6 +519,16 @@ single unbreakable token the fast path answers with no entry at all.
     closure → green ring and 営業 in the calendar, directly above the 火曜日 the
     panel was displaying. 33 of the 44 affected entries never mention 祝日 at
     all.
+  - **A displaced closure is a date predicate, so it lives in `isClosedOn`
+    too** — one place, and the ring, the badge and the grid all pick it up.
+    `holidaysBefore` (the unbroken run of holidays before a date, capped at 7 —
+    GW's four is the real maximum) drives both `hol_defers_closed` and
+    `closed_after_hol`; the block is only reached on a non-holiday, since a
+    holiday already returned closed (`'hol'`) or open (`hol_overrides_closed`,
+    which both flags imply). `shiftDate` and `weekdayKeyOn` do all date
+    arithmetic via `Date.UTC` — never a local `Date` — and `monthCalendar.ts`
+    imports `weekdayKeyOn` rather than keeping its own index→`DayKey` copy — a
+    disagreement there would silently misattribute a closure.
   - **An unstated 祝日 falls back to the weekday's *hours*** (`scheduleKey`,
     which therefore takes `h`). 明治茶館 states 土曜・日曜 hours and no 祝日 ones;
     read as `'hol'`, a Saturday holiday landed on an empty schedule and became
@@ -654,7 +682,8 @@ single unbreakable token the fast path answers with no entry at all.
 `make test` → `pipeline/tests/` (pytest) + vitest over `src/**/*.test.ts`
 (`web/vitest.config.ts`, so `src/data` and `src/auth` alike). Both fully
 offline: verified to pass with `socket.connect` blocked and with
-`pipeline/.env` renamed away. ~2s total — a per-change gate, not a CI ritual.
+`pipeline/.env` renamed away. ~12s total (pytest ~3s, vitest ~9s, mostly the
+month-sweep agreement invariant below) — a per-change gate, not a CI ritual.
 
 - **The suite must never reach production.** `PIPELINE_DATABASE_URL` points at
   live Supabase and there's no staging DB, so `tests/conftest.py` stubs
@@ -699,6 +728,10 @@ offline: verified to pass with `socket.connect` blocked and with
   open/`closing_soon`; unknown iff noon reads `hours_unknown`). Overnight
   schedules are excluded, since the look-back makes the two disagree *by
   design*. Without it the grid and the ring drift the moment either is touched.
+  `monthsFor` gives a fixture with a displaced closure three months (2026-08
+  山の日 on a Tuesday, 09 the 敬老の日～秋分の日 run, 10 a Saturday month-end) and
+  everything else one — sweeping all of them over all three tripled vitest's
+  runtime and found nothing.
 - **`test_display_golden.py` has no rule-tier-reproduces analogue** — and
   couldn't: that corpus is authored wholesale, so "entries the rules get wrong"
   would be *all* of them, and the assertion would detect nothing. Its sharpness
