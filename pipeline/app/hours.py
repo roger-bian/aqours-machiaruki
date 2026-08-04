@@ -272,13 +272,22 @@ def rule_based_parse(raw_hours, raw_holidays):
         'closed': sorted(closed),
         'closed_nth': nth,
         'closed_dates': sorted(set(dates)),
-        # Whether a 祝日 lifts this location's weekday closures (`月曜日（祝日は
-        # 開館）`). Override tier only: the rule tier reads a plain `火曜日` as
-        # shutting every Tuesday, holiday or not, which is what the text says.
-        # Lifting a stated closure off a phrase buried in a parenthetical is a
-        # judgement call, so it stays hand-reviewed - same reasoning as a null
-        # interval end.
+        # Where a closure goes when it collides with a 祝日, plus the one monthly
+        # closure the schema had no room for. All three are override tier only:
+        # the rule tier reads a plain `火曜日` as shutting every Tuesday, holiday
+        # or not, which is what the text says, and moving or adding a closure off
+        # a phrase buried in a parenthetical is a judgement call - same reasoning
+        # as a null interval end.
+        #   hol_overrides_closed - `月曜日（祝日は開館）`: the holiday is open
+        #   hol_defers_closed    - `月曜日（祝日の場合は翌日）`: and the closure
+        #                          moves to the next day that is not a holiday
+        #   closed_after_hol     - `祝日の翌日（土曜日・日曜日を除く）`: the day
+        #                          after any holiday is shut
+        #   closed_last_weekday  - `毎月最終の平日`: the last Mon-Fri of a month
         'hol_overrides_closed': False,
+        'hol_defers_closed': False,
+        'closed_after_hol': False,
+        'closed_last_weekday': False,
         'always_open': always_open,
         'irregular': irregular,
         'permanently_closed': perm,

@@ -75,6 +75,8 @@ CORRECTIONS = {
         'closed': ['mon'],
         'closed_dates': ['12-29', '12-30', '12-31', '01-01', '01-02', '01-03'],
         'hol_overrides_closed': True,          # （祝日は開館）
+        'closed_after_hol': True,              # 祝日の翌日（土曜日・日曜日を除く）
+        'closed_last_weekday': True,           # 毎月最終の平日
         'notes': ['月曜が祝日の場合は開館', '毎月最終の平日、祝日の翌日は休館'],
         'irregular': True,
     },
@@ -82,6 +84,7 @@ CORRECTIONS = {
     'd021663ada668fb8': {
         'closed_dates': ['12-29', '12-30', '12-31', '01-01', '01-02', '01-03'],
         'hol_overrides_closed': True,          # （休日にあたるときはその翌日）
+        'closed_after_hol': True,              # 休日の翌日（土曜日・日曜日・休日を除く）
         'notes': ['月曜が祝日の場合は翌日休館', '祝日の翌日も休館（土日祝を除く）'],
     },
     # 三交イン 沼津駅前 - a hotel; the Description carries no 営業時間 label at
@@ -101,15 +104,17 @@ CORRECTIONS = {
     'da915735c22360df': {
         'notes': ['予約により変更あり'],
     },
-    # 欧蘭陀館 - 月曜日(祝日の場合は翌日). The deferred closure itself has no
-    # schema slot, so only the open half is modelled and the note carries the rest
+    # 欧蘭陀館 - 月曜日(祝日の場合は翌日); the notes stay because a grey calendar
+    # cell says only *that* a day is shut, never why
     '3041e474bf0261a7': {
         'hol_overrides_closed': True,
+        'hol_defers_closed': True,
         'notes': ['月曜が祝日の場合は翌日休み'],
     },
     # 焼きそば ゆきちゃん - 月曜日（月曜が祝日の場合、火曜日休み）
     '9ed683f9642a59fe': {
         'hol_overrides_closed': True,
+        'hol_defers_closed': True,
         'notes': ['月曜が祝日の場合は火曜休み'],
     },
     # 沼津ラクーンよしもと劇場 - 土日祝 open at 11:30 and close at 公演終了時間,
@@ -207,7 +212,8 @@ def main():
         entry['_names'] = names[key]
         # stable field order so git diffs stay readable
         order = ['_names', '_raw_hours', '_raw_holidays', '_comment', 'weekly',
-                 'closed', 'closed_nth', 'closed_dates', 'hol_overrides_closed',
+                 'closed', 'closed_nth', 'closed_dates', 'closed_last_weekday',
+                 'hol_overrides_closed', 'hol_defers_closed', 'closed_after_hol',
                  'always_open', 'irregular', 'permanently_closed',
                  'confidence', 'notes']
         out[key] = {k: entry[k] for k in order if k in entry}

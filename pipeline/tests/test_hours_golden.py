@@ -22,9 +22,18 @@ from tools.gen_hours_overrides import CORRECTIONS
 
 # every key the frontend's HoursJson type declares (web/src/data/types.ts)
 CONTRACT_KEYS = {
-    'weekly', 'closed', 'closed_nth', 'closed_dates', 'hol_overrides_closed',
+    'weekly', 'closed', 'closed_nth', 'closed_dates', 'closed_last_weekday',
+    'hol_overrides_closed', 'hol_defers_closed', 'closed_after_hol',
     'always_open', 'irregular', 'permanently_closed', 'confidence', 'notes',
 }
+
+# The flags that move or add a closure rather than reading one off the text. Each
+# is a judgement call about a phrase inside a parenthetical, so none may come from
+# the rule tier - see test_only_a_reviewed_entry_bends_a_closure.
+JUDGEMENT_FLAGS = (
+    'hol_overrides_closed', 'hol_defers_closed', 'closed_after_hol',
+    'closed_last_weekday',
+)
 
 ENTRIES = sorted(OVERRIDES.items())
 IDS = [f"{k}:{'/'.join(e['_names'])}" for k, e in ENTRIES]
@@ -85,20 +94,28 @@ def test_every_entry_satisfies_the_frontend_contract(key, entry):
 
 
 @pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)
-def test_only_a_reviewed_entry_lifts_a_closure_on_a_holiday(key, entry):
-    """`hol_overrides_closed` reopens a stated 定休日 whenever it lands on a
-    public holiday, so it is the one flag in this file that can *undo* a closure
-    the source wrote down. The rule tier never sets it (a plain `火曜日` shuts
-    every Tuesday, 海の日 included); it only ever comes from a hand-reviewed
-    entry whose text says so, and each of those spells the reason out in
-    `notes`."""
-    flag = entry['hol_overrides_closed']
-    assert isinstance(flag, bool)
-    if flag:
-        assert entry['confidence'] != 'auto'
-        assert entry['notes'], 'a lifted closure needs its ⚠ caveat'
+def test_only_a_reviewed_entry_bends_a_closure(key, entry):
+    """These four flags are the only ones here that can *undo* a closure the
+    source wrote down, *move* it to a day the source never names, or add one the
+    weekly grid cannot express. The rule tier never sets any of them (a plain
+    `火曜日` shuts every Tuesday, 海の日 included); each comes from a
+    hand-reviewed entry whose text says so, and each of those spells the reason
+    out in `notes` - the calendar renders a grey cell, never a why."""
+    for flag in JUDGEMENT_FLAGS:
+        assert isinstance(entry[flag], bool), flag
+        if entry[flag]:
+            assert entry['confidence'] != 'auto', flag
+            assert entry['notes'], f'{flag} needs its ⚠ caveat'
+
+    if entry['hol_overrides_closed']:
         # the flag is about weekday closures; without one it changes nothing
         assert entry['closed'] or entry['closed_nth']
+    if entry['hol_defers_closed']:
+        # a deferral both reopens the holiday and needs a closure to carry to the
+        # next day, and it reads `closed` alone (no corpus entry pairs a deferral
+        # with an nth rule, so nothing is silently unhandled)
+        assert entry['hol_overrides_closed']
+        assert entry['closed']
 
 
 @pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)
