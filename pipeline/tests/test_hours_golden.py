@@ -33,19 +33,16 @@ IDS = [f"{k}:{'/'.join(e['_names'])}" for k, e in ENTRIES]
 # source text rather than a parse failure, which is why they are allowlisted
 # instead of fixed - but a *new* gap means something broke, so the set is exact.
 #
-# The two `hol` gaps are resolved at read time rather than here:
-# web/src/data/openStatus.ts falls back to the calendar weekday when the source
-# never stated a 祝日 schedule, so 明治茶館's 定休日 月～金 closes a Tuesday
-# holiday instead of voiding it. That fallback cannot live in this file - which
-# weekday a holiday lands on depends on the year.
+# Both survivors are an unstated 祝日, and both are resolved at read time rather
+# than here: web/src/data/openStatus.ts falls back to the calendar weekday when
+# the source never stated a 祝日 schedule, so 明治茶館's 定休日 月～金 closes a
+# Tuesday holiday instead of voiding it. That fallback cannot live in this file -
+# which weekday a holiday lands on depends on the year.
 KNOWN_HOUR_GAPS = {
     # 平日・土曜 / 土・日曜日 - 祝日 is never mentioned
     '13d2caf1023bb54e': ['hol'],
     # 土曜・日曜 only, 定休日 月～金 - 祝日 is never mentioned
     'ebf2af2e0601b7e1': ['hol'],
-    # 土日祝 run to 公演終了時間, which is not a time; those days stay empty
-    # rather than inventing an end (see CORRECTIONS in gen_hours_overrides.py)
-    'fad7f41f61d1de24': ['sat', 'sun', 'hol'],
 }
 
 
@@ -71,10 +68,18 @@ def test_every_entry_satisfies_the_frontend_contract(key, entry):
     assert set(weekly) == set(DAYS)
     for day, intervals in weekly.items():
         for start, end in intervals:
-            assert isinstance(start, int) and isinstance(end, int)
+            assert isinstance(start, int)
+            assert 0 <= start < 1440, (day, start)
+            # a null end means the source stated an opening time and no close
+            # (公演終了時間). Only the override tier may write one - the rule
+            # tier has no way to know a close was intended but unstated.
+            if end is None:
+                assert entry['confidence'] != 'auto', (day, start)
+                continue
+            assert isinstance(end, int)
             # an end past 1440 is an overnight shift; the frontend looks back a
             # day for those, so it must still be a same-day-plus-24h value
-            assert 0 <= start < end <= 2880, (day, start, end)
+            assert start < end <= 2880, (day, start, end)
 
 
 @pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)
@@ -117,7 +122,7 @@ def test_rule_tier_reproduces_all_but_the_hand_fixed_entries():
 def test_no_new_day_lacks_hours_without_being_closed(key, entry):
     """Ported from the `python -m app.hours` review harness, whose `!!` flag
     marks a day with no hours that is not a stated 定休日 - usually a sign the
-    day scope was misread. The remaining ones are gaps in the source text."""
+    day scope was misread. The two real ones are gaps in the source text."""
     weekly = entry['weekly']
     gaps = [] if weekly is None else [
         d for d in DAYS if not weekly[d] and d not in entry['closed']

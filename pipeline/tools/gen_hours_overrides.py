@@ -107,9 +107,18 @@ CORRECTIONS = {
     '9ed683f9642a59fe': {
         'notes': ['月曜が祝日の場合は火曜休み'],
     },
-    # 沼津ラクーンよしもと劇場 - 土日祝 close at 公演終了時間, which is not a
-    # time; those days stay empty rather than inventing an end
+    # 沼津ラクーンよしもと劇場 - 土日祝 open at 11:30 and close at 公演終了時間,
+    # which is not a time. A null end says "open, close not stated"; leaving the
+    # days empty instead made them indistinguishable from a day the source never
+    # mentioned, so every 土日祝 read as closed against the very text above it.
+    # Inventing an end is not an option either - it would have the ring claim
+    # まもなく閉店 at a time nobody wrote down.
     'fad7f41f61d1de24': {
+        'weekly': {'mon': [[900, 1080]], 'tue': [[900, 1080]],
+                   'wed': [[900, 1080]], 'thu': [[900, 1080]],
+                   'fri': [[900, 1080]],
+                   'sat': [[690, None]], 'sun': [[690, None]],
+                   'hol': [[690, None]]},
         'notes': ['土日祝は11:30から公演終了時間まで（公演により変動）',
                   '休館日あり'],
         'irregular': True,
@@ -132,7 +141,8 @@ def _dump(obj):
             return {k: compact(v) for k, v in node.items()}
         if isinstance(node, list):
             if all(not isinstance(x, (dict, list)) for x in node) or all(
-                    isinstance(x, list) and all(isinstance(y, int) for y in x)
+                    isinstance(x, list)
+                    and all(isinstance(y, int) or y is None for y in x)
                     for x in node):
                 token = f'\x00{len(stash)}\x00'
                 stash[token] = json.dumps(node, ensure_ascii=False)
