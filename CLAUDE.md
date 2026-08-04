@@ -282,7 +282,23 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   override must not keep overriding changed source data.
 - **Intervals are minutes from midnight** (`600` = 10:00). `11:00～26:00` →
   `[660, 1560]`; the frontend looks back a day for `end > 1440`, so 01:00 still
-  reads as open.
+  reads as open. A **null end** = "opens then, close not stated" — only
+  よしもと劇場's `土日祝11:30ー公演終了時間`. Override tier only; the rule tier can't know a
+  close was meant but omitted (asserted in `test_hours_golden.py`). Empty days
+  were the alternative and were worse — indistinguishable from a day the source
+  never mentions, so 11 土日祝 read *closed* against the very text stating the
+  opening time. Inventing an end is the other wrong answer: the ring claims
+  まもなく閉店 at an hour nobody wrote. Frontend: `'open'`, never `closing_soon`,
+  never overnight.
+- **`平日` covers 土曜 when 土 is never mentioned** (post-pass at the end of
+  `_parse_hours`). Older usage — 平日 = "not Sunday/holiday", the six-day week.
+  市川/つじ写真館 write `平日` + `日祝` and never name 土曜, so their Saturdays fell through
+  the hole between the two scopes: no hours, no closure → ring said closed
+  every Saturday. Guarded on 土 being absent **and** 日/祝 having their own scope
+  — that pairing is what makes 平日 mean "everything else". Fires on exactly
+  those 2; the 14 others mentioning 平日 state 土 explicitly. A post-pass, *not*
+  `_tokenize_days` — that runs per-scope and can't see whether 土 appears
+  elsewhere.
 - **Tokenize weekdays before anything else** (`_tokenize_days`). `日` is both
   "Sunday" and the suffix in `曜日`/`1月1日`, and compounds must be consumed
   whole — otherwise the `日` inside `平日`/`土日`/`日祝` is eaten as Sunday and
@@ -439,21 +455,58 @@ single unbreakable token the fast path answers with no entry at all.
 - **`data/markerColors.ts`** — single choke point for colour *and* filtering.
   `colorFor()` (blue/orange/grey by stamp+badge count) is the marker **fill**;
   `ringColorFor()` maps an `OpenStatus` to the **ring** (green open / amber
-  closing within 2h / red closed / black permanently closed / `null` unknown →
-  no ring). Two independent channels — don't fold open-status into the fill.
+  closing within 2h / red closed / black permanently closed / `null` for
+  **both** `unknown` and `hours_unknown` → no ring). Two independent channels —
+  don't fold open-status into the fill. Neither unknown draws a ring: a ring
+  answers "can I go *now*", and there the honest answer is nothing; the panel's
+  badge has room for words and distinguishes them.
   `matchesFilters()` takes `now` and **AND**s its filters (was OR, until the
   panel went to one checkbox per *concept* rather than per *field*).
 - **`data/openStatus.ts`** — `openStatusFor(hours_json, now)`, pure. Order
   matters: `permanently_closed` short-circuits before the clock (a shut shop is
   never "open"), then `always_open` (a 24h place must never read
   `closing_soon`), then closed-dates/closed-days/nth-week, then today's
-  intervals, then yesterday's `end > 1440` overnight shifts. All dates resolved
-  in **Asia/Tokyo** via `Intl.DateTimeFormat`, never the device timezone — the
-  shops are in Numazu wherever the phone thinks it is. `@holiday-jp/holiday_jp`
-  supplies 祝日 (incl. 振替休日 and the astronomical 春分/秋分), needed because
-  the source text treats 祝日 as its own category (`土日祝`, `日曜日・祝日`);
-  `isHoliday()` takes a `YYYY-MM-DD` string, sidestepping Date/timezone
-  conversion entirely. ~13 kB gzipped.
+  intervals, then yesterday's `end > 1440` overnight shifts, then
+  `hours_unknown`. All dates resolved in **Asia/Tokyo** via
+  `Intl.DateTimeFormat`, never the device timezone — the shops are in Numazu
+  wherever the phone thinks it is. `@holiday-jp/holiday_jp` supplies 祝日 (incl.
+  振替休日 and the astronomical 春分/秋分), needed because the source text treats
+  祝日 as its own category (`土日祝`, `日曜日・祝日`); `isHoliday()` takes a
+  `YYYY-MM-DD` string, sidestepping Date/timezone conversion entirely. ~13 kB
+  gzipped.
+  - **`hours_unknown` ≠ `unknown`**: no hours *and* no stated closure for
+    **this day**, vs. no schedule at all. `closed` there asserted a shutdown
+    nobody wrote. Checked **after** the overnight look-back, so a shift from
+    yesterday still wins. Badge 営業時間不明, no ring. Currently unreachable from
+    real data (all 5 gaps are fixed upstream) — kept as the safety net for a
+    *new* location on the auto tier, where the alternative is a silent wrong
+    休み. Covered by synthetic fixtures only.
+  - **An unstated 祝日 falls back to the calendar weekday** (`scheduleKey`, which
+    therefore takes `h`). 明治茶館 is 定休日 月～金 with no 祝日 hours; read as
+    `'hol'`, 海の日 on a Monday *escaped* its own stated closure. Only 2 entries
+    take this path — the other 122 state 祝日 hours (109) or 祝日 closed (13), and
+    those still win. `closed_nth` keeps matching the **calendar** weekday, so
+    第3月曜日 still fires on 海の日. Exported `dayKeyInJst` is the *raw* key and
+    deliberately disagrees on such a day; it has no app caller, only tests.
+  - `endOfIntervalAt` returns `number | 'open_ended' | null` — **one** loop,
+    not two. It exists because `openStatusFor`/`closingTimeFor` each kept a
+    copy and drifted; a null end must not reintroduce that.
+  - `dayOpennessFor(h, 'YYYY-MM-DD')` → `open`/`closed`/`unknown`, the
+    calendar's whole computation, built from the same
+    `isClosedOn`/`scheduleKey` pair so grid and ring can't disagree. Ignores
+    the previous day's past-midnight intervals on purpose — "still serving at
+    01:00" isn't a day you plan a visit around.
+- **`data/monthCalendar.ts`** — `buildMonthGrid(h, year, month)` (+ `monthOf`,
+  `shiftMonth`, `showCalendarFor`, `monthLabel`, `dayName`). Pure, no clock:
+  which day is "today" is the component's business. All date arithmetic via
+  `Date.UTC`, never a local `Date`, so the device timezone can't shift which
+  day is which; `getUTCDay()` of the 1st **is** `leadingBlanks` under 日曜始まり,
+  and `Date.UTC(y, m, 0)` gives the day count. `showCalendarFor` = has a
+  `weekly` and isn't `permanently_closed` — mirrors その他, rendering only when it
+  has something to say. `unknownDays` names the gap for the caveat line and is
+  **always the calendar weekday, never `hol`**: a stated 祝日 resolves to open or
+  closed, so an unknown holiday got there via the weekday fallback and it's the
+  weekday that's unstated — blaming 祝日 would name the wrong gap.
 - **`data/displayLines.ts`** — `linesFor(location, field)` / `extraLines()`.
   The frontend no longer decides where anything breaks; `display_json` arrives
   pre-broken (see "Line breaking"). This is only the fallback for a row the
@@ -502,13 +555,14 @@ single unbreakable token the fast path answers with no entry at all.
   directly **above** the raw Japanese it came from, so a bad parse shows up in
   ordinary use, not only when someone goes looking. `irregular` notes → ⚠
   caveat lines; `permanently_closed` → struck-through grey title.
-  住所/営業時間/定休日/その他 each sit behind a `CollapsibleField`, **collapsed
-  on open**, expanding independently — photo, name and status badge have to fit
-  a phone screen without scrolling. Each field owns its `useState`; the four
-  sit under a wrapper **keyed on `location.id`**, because tapping a second
+  住所/営業時間/定休日/営業カレンダー/その他 each sit behind a `CollapsibleField`,
+  **collapsed on open**, expanding independently — photo, name and status badge
+  have to fit a phone screen without scrolling. Each field owns its `useState`;
+  they sit under a wrapper **keyed on `location.id`**, because tapping a second
   marker leaves this panel mounted and without the key a field stays expanded
   from the previous location. **その他 renders only when non-empty** (~1/3 of
-  locations) → the header count varies by marker. Header is a full-width flex
+  locations) and 営業カレンダー only when `showCalendarFor` → the header count
+  varies by marker. Header is a full-width flex
   row → whole line is the tap target (one-handed use while walking), not just
   the label. Bodies and ⚠ notes carry `textAlign: 'left'` + a 10px gutter
   against `PANEL_STYLE`'s centered default. Field values and the name come from
@@ -517,6 +571,24 @@ single unbreakable token the fast path answers with no entry at all.
   lossy (a break consumed the comma it replaced). `WordLines` linkifies a line
   only when `^https?://` matches the *whole* line, so URL-alone-on-its-line is
   a checked invariant of the override corpus, not a hope.
+- **`panel/MonthCalendar.tsx`** — which days this month it's open *at all*, the
+  planning question `StatusBadge` can't answer. Draws only; every rule is in
+  `data/monthCalendar.ts` (`.tsx` is unmatched by `vitest.config.ts`'s
+  `include` → component-held logic is untestable by construction, same reason
+  `searchLocations.ts` exists). Inline `CollapsibleField`, **not** a second
+  card — it inherits the collapse, the tap target and the per-location reset,
+  and needs no z-index above `DetailPanel`'s 1000. Month state is a plain
+  `useState`: it sits inside both the `{expanded && …}` and the
+  `key={location.id}` wrapper, so it resets per location *and* per collapse for
+  free. Takes `now` as a prop and **must not tick** — every `now` change busts
+  `markerIcon`'s cache. 日曜始まり; `‹ ›` step any month (`closed_dates` is
+  year-agnostic `MM-DD`, `closed_nth` per-month → every month computes
+  identically). 営業 green fill / 休み grey / 不明 dashed; today and 祝日 marked with
+  **inset `box-shadow`**, not a border, and every cell carries a transparent
+  1px border so the dashed one can't resize its box — same no-layout-shift
+  trick as `markerIcon`. ⚠ lines above the grid for `irregular` and for
+  `unknownDays`; `notes` are **not** repeated here, `StatusBadge` already
+  renders them a few rows up.
 - **`data/searchLocations.ts`** — `searchLocations(locations, query)`, pure,
   behind the magnifying glass. A `.ts` module, not component-internal, because
   `vitest.config.ts`'s `include` is `src/**/*.test.ts` — `.tsx` is deliberately
@@ -595,8 +667,18 @@ offline: verified to pass with `socket.connect` blocked and with
   doubles as a golden corpus: the rule tier must reproduce 113 of the 125
   entries exactly and must still *fail* on exactly the 12 `CORRECTIONS` keys (a
   stale hand-fix is as much a bug as a regression). Also pins every entry
-  against the frontend's `HoursJson` shape, and allowlists the 5 entries with a
-  legitimate source-text hours gap so a *new* gap fails.
+  against the frontend's `HoursJson` shape, and allowlists the entries with a
+  legitimate source-text hours gap so a *new* gap fails — `KNOWN_HOUR_GAPS`,
+  down from 5 to **2**, both an unstated 祝日 resolved at *read* time by
+  `openStatus.ts`'s weekday fallback (which weekday a holiday lands on depends
+  on the year, so it can't live in the corpus). A null interval end is allowed
+  only where `confidence != 'auto'`.
+- **`monthCalendar.test.ts`'s agreement invariant is the one that keeps the
+  calendar honest** — walks a month per fixture and asserts `dayOpennessFor`
+  and `openStatusFor` agree on every day (open iff some 30-min sample reads
+  open/`closing_soon`; unknown iff noon reads `hours_unknown`). Overnight
+  schedules are excluded, since the look-back makes the two disagree *by
+  design*. Without it the grid and the ring drift the moment either is touched.
 - **`test_display_golden.py` has no rule-tier-reproduces analogue** — and
   couldn't: that corpus is authored wholesale, so "entries the rules get wrong"
   would be *all* of them, and the assertion would detect nothing. Its sharpness
