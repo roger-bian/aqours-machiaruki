@@ -22,8 +22,8 @@ from tools.gen_hours_overrides import CORRECTIONS
 
 # every key the frontend's HoursJson type declares (web/src/data/types.ts)
 CONTRACT_KEYS = {
-    'weekly', 'closed', 'closed_nth', 'closed_dates', 'always_open',
-    'irregular', 'permanently_closed', 'confidence', 'notes',
+    'weekly', 'closed', 'closed_nth', 'closed_dates', 'hol_overrides_closed',
+    'always_open', 'irregular', 'permanently_closed', 'confidence', 'notes',
 }
 
 ENTRIES = sorted(OVERRIDES.items())
@@ -34,10 +34,12 @@ IDS = [f"{k}:{'/'.join(e['_names'])}" for k, e in ENTRIES]
 # instead of fixed - but a *new* gap means something broke, so the set is exact.
 #
 # Both survivors are an unstated 祝日, and both are resolved at read time rather
-# than here: web/src/data/openStatus.ts falls back to the calendar weekday when
-# the source never stated a 祝日 schedule, so 明治茶館's 定休日 月～金 closes a
-# Tuesday holiday instead of voiding it. That fallback cannot live in this file -
-# which weekday a holiday lands on depends on the year.
+# than here, by web/src/data/openStatus.ts: closures are read off the calendar
+# weekday, so 明治茶館's 定休日 月～金 shuts a Monday holiday rather than voiding
+# itself, and hours fall back to the weekday's when the source stated no 祝日
+# ones, so its 土曜・日曜 holidays keep those hours instead of reading
+# 営業時間不明. Neither can live in this file - which weekday a holiday lands on
+# depends on the year.
 KNOWN_HOUR_GAPS = {
     # 平日・土曜 / 土・日曜日 - 祝日 is never mentioned
     '13d2caf1023bb54e': ['hol'],
@@ -80,6 +82,23 @@ def test_every_entry_satisfies_the_frontend_contract(key, entry):
             # an end past 1440 is an overnight shift; the frontend looks back a
             # day for those, so it must still be a same-day-plus-24h value
             assert start < end <= 2880, (day, start, end)
+
+
+@pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)
+def test_only_a_reviewed_entry_lifts_a_closure_on_a_holiday(key, entry):
+    """`hol_overrides_closed` reopens a stated 定休日 whenever it lands on a
+    public holiday, so it is the one flag in this file that can *undo* a closure
+    the source wrote down. The rule tier never sets it (a plain `火曜日` shuts
+    every Tuesday, 海の日 included); it only ever comes from a hand-reviewed
+    entry whose text says so, and each of those spells the reason out in
+    `notes`."""
+    flag = entry['hol_overrides_closed']
+    assert isinstance(flag, bool)
+    if flag:
+        assert entry['confidence'] != 'auto'
+        assert entry['notes'], 'a lifted closure needs its ⚠ caveat'
+        # the flag is about weekday closures; without one it changes nothing
+        assert entry['closed'] or entry['closed_nth']
 
 
 @pytest.mark.parametrize('key,entry', ENTRIES, ids=IDS)

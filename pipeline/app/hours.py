@@ -272,6 +272,13 @@ def rule_based_parse(raw_hours, raw_holidays):
         'closed': sorted(closed),
         'closed_nth': nth,
         'closed_dates': sorted(set(dates)),
+        # Whether a 祝日 lifts this location's weekday closures (`月曜日（祝日は
+        # 開館）`). Override tier only: the rule tier reads a plain `火曜日` as
+        # shutting every Tuesday, holiday or not, which is what the text says.
+        # Lifting a stated closure off a phrase buried in a parenthetical is a
+        # judgement call, so it stays hand-reviewed - same reasoning as a null
+        # interval end.
+        'hol_overrides_closed': False,
         'always_open': always_open,
         'irregular': irregular,
         'permanently_closed': perm,
