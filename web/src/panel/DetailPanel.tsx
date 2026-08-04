@@ -3,7 +3,9 @@ import type { Location, OpenStatus } from '../data/types';
 import { colorForMember } from '../data/memberColors';
 import { RING_COLORS } from '../data/markerColors';
 import { closingTimeFor, openStatusFor } from '../data/openStatus';
+import { showCalendarFor } from '../data/monthCalendar';
 import { extraLines, linesFor } from '../data/displayLines';
+import { MonthCalendar } from './MonthCalendar';
 
 const PANEL_STYLE: React.CSSProperties = {
   display: 'block',
@@ -272,6 +274,14 @@ export function DetailPanel({
         <CollapsibleField label="定休日">
           <WordLines lines={linesFor(location, 'holidays')} />
         </CollapsibleField>
+        {/* which days this month it is open at all - the planning question the
+            badge above cannot answer. Absent where a calendar could say nothing:
+            no schedule at all, or already permanently closed. */}
+        {showCalendarFor(location.hours_json) && (
+          <CollapsibleField label="営業カレンダー">
+            <MonthCalendar hours={location.hours_json!} now={now} />
+          </CollapsibleField>
+        )}
         {/* everything the source put in 営業時間/定休日/住所 that isn't a
             schedule or an address: parking, URLs, stamp placement, end-of-rally
             markers. Absent entirely for the ~2/3 of locations with none. */}
