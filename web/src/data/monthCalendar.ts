@@ -1,4 +1,6 @@
-import { dayOpennessFor, holidayNameOn, jstDateFor } from './openStatus';
+import {
+  dayOpennessFor, holidayNameOn, jstDateFor, weekdayKeyOn,
+} from './openStatus';
 import type { DayKey, DayOpenness, HoursJson } from './types';
 
 /** Weekday headers, 日曜始まり - the standard Japanese wall-calendar layout. Also
@@ -10,8 +12,10 @@ const DAY_NAMES: Record<DayKey, string> = {
   fri: '金曜日', sat: '土曜日', sun: '日曜日', hol: '祝日',
 };
 
-/** Index into WEEKDAY_HEADERS, matching `Date.getUTCDay()`. */
-const WEEKDAY_KEYS: DayKey[] = [
+/** Weekday order for `unknownDays`, matching WEEKDAY_HEADERS. Which weekday a
+ *  date *is* comes from openStatus.ts's `weekdayKeyOn` - the closure rules there
+ *  need the same mapping, and two copies of it could disagree. */
+const WEEKDAY_ORDER: DayKey[] = [
   'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat',
 ];
 
@@ -100,8 +104,7 @@ export function buildMonthGrid(
       // or closed, so an unknown holiday reached that state through
       // scheduleKey's weekday fallback and it is the weekday that is unstated.
       // Attributing it to 祝日 would name the wrong gap in the caveat line.
-      const weekday = new Date(Date.UTC(year, month - 1, dayOfMonth)).getUTCDay();
-      unknown.add(WEEKDAY_KEYS[weekday]);
+      unknown.add(weekdayKeyOn(date));
     }
     days.push({
       date,
@@ -116,6 +119,6 @@ export function buildMonthGrid(
     month,
     leadingBlanks,
     days,
-    unknownDays: WEEKDAY_KEYS.filter((key) => unknown.has(key)),
+    unknownDays: WEEKDAY_ORDER.filter((key) => unknown.has(key)),
   };
 }

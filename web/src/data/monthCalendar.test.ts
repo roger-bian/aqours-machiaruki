@@ -26,7 +26,10 @@ function hours(overrides: Partial<HoursJson> = {}): HoursJson {
     closed: [],
     closed_nth: [],
     closed_dates: [],
+    closed_last_weekday: false,
     hol_overrides_closed: false,
+    hol_defers_closed: false,
+    closed_after_hol: false,
     always_open: false,
     irregular: false,
     permanently_closed: false,
@@ -161,6 +164,64 @@ describe('holidays', () => {
       hours({ closed_nth: [{ day: 'mon', nth: [3] }] }), 2026, 7,
     )
     expect(on(grid, '2026-07-20')).toBe('closed')
+  })
+})
+
+// The three ways a closure moves rather than simply applying. Each renders as a
+// grey cell on a day the raw 定休日 text does not name, which is the whole reason
+// they belong in the grid: nobody reads 月曜日(祝日の場合は翌日) off a wall calendar.
+describe('displaced closures', () => {
+  // 欧蘭陀館, ゆきちゃん
+  const defers = hours({
+    weekly: { ...everyDay([540, 1260]), mon: [] },
+    closed: ['mon'],
+    hol_overrides_closed: true,
+    hol_defers_closed: true,
+  })
+  // 歴史民俗資料館 (its 毎月最終の平日 included), 芹沢記念館 without it
+  const museum = hours({
+    weekly: { ...everyDay([540, 960]), mon: [] },
+    closed: ['mon'],
+    hol_overrides_closed: true,
+    closed_after_hol: true,
+    closed_last_weekday: true,
+  })
+
+  it('moves a deferred closure onto the next day', () => {
+    const july = buildMonthGrid(defers, 2026, 7)
+    expect(on(july, '2026-07-20')).toBe('open') // 海の日
+    expect(on(july, '2026-07-21')).toBe('closed') // deferred here
+    // the other Mondays are shut and their Tuesdays are not
+    for (const day of ['06', '13', '27']) {
+      expect(on(july, `2026-07-${day}`), day).toBe('closed')
+    }
+    expect(on(july, '2026-07-14')).toBe('open')
+    expect(july.unknownDays).toEqual([])
+  })
+
+  it('carries a deferral past a run of holidays', () => {
+    const sept = buildMonthGrid(defers, 2026, 9)
+    // 09-21 敬老の日, 09-22 休日, 09-23 秋分の日, all open
+    for (const day of ['21', '22', '23']) {
+      expect(on(sept, `2026-09-${day}`), day).toBe('open')
+    }
+    expect(on(sept, '2026-09-24')).toBe('closed')
+  })
+
+  it('shuts the day after any holiday, weekends excepted', () => {
+    const august = buildMonthGrid(museum, 2026, 8)
+    expect(on(august, '2026-08-11')).toBe('open') // 山の日, a Tuesday
+    expect(on(august, '2026-08-12')).toBe('closed')
+    const march = buildMonthGrid(museum, 2026, 3)
+    expect(on(march, '2026-03-20')).toBe('open') // 春分の日, a Friday
+    expect(on(march, '2026-03-21')).toBe('open') // Saturday, excepted
+  })
+
+  it('shuts the last Mon-Fri of the month', () => {
+    expect(on(buildMonthGrid(museum, 2026, 9), '2026-09-30')).toBe('closed') // 水
+    const october = buildMonthGrid(museum, 2026, 10)
+    expect(on(october, '2026-10-30')).toBe('closed') // 金, month ends Saturday
+    expect(on(october, '2026-10-31')).toBe('open')
   })
 })
 
@@ -303,22 +364,48 @@ describe('agreement with openStatusFor', () => {
       closed: ['tue'],
       hol_overrides_closed: true,
     })],
+    ['deferred 定休日', hours({
+      weekly: { ...everyDay([540, 1260]), mon: [] },
+      closed: ['mon'],
+      hol_overrides_closed: true,
+      hol_defers_closed: true,
+    })],
+    ['祝日の翌日 + 毎月最終の平日', hours({
+      weekly: { ...everyDay([540, 960]), mon: [] },
+      closed: ['mon'],
+      hol_overrides_closed: true,
+      closed_after_hol: true,
+      closed_last_weekday: true,
+    })],
   ]
+
+  // A displaced closure needs three months, everything else one. August has 山の日
+  // on a Tuesday, September the 敬老の日～秋分の日 run a deferral has to carry
+  // across, and October a Saturday month-end 毎月最終の平日 has to walk back over.
+  // Sweeping *every* fixture over all three tripled the suite's runtime and found
+  // nothing - 'always open' learns nothing from a second month.
+  function monthsFor(h: HoursJson): number[] {
+    return h.hol_defers_closed || h.closed_after_hol || h.closed_last_weekday
+      ? [8, 9, 10]
+      : [8]
+  }
 
   for (const [label, h] of FIXTURES) {
     it(`matches openStatusFor over a month: ${label}`, () => {
-      for (const day of buildMonthGrid(h, 2026, 8).days) {
-        const statuses = statusesAcross(h, day.date)
-        const everOpen = statuses.some((s) => s === 'open' || s === 'closing_soon')
-        const everUnknown = statuses.some((s) => s === 'hours_unknown')
+      for (const month of monthsFor(h)) {
+        for (const day of buildMonthGrid(h, 2026, month).days) {
+          const statuses = statusesAcross(h, day.date)
+          const everOpen = statuses.some((s) => s === 'open' || s === 'closing_soon')
+          const everUnknown = statuses.some((s) => s === 'hours_unknown')
 
-        if (day.openness === 'open') {
-          expect(everOpen, `${day.date} should be open at some point`).toBe(true)
-        } else {
-          expect(everOpen, `${day.date} should never read open`).toBe(false)
+          if (day.openness === 'open') {
+            expect(everOpen, `${day.date} should be open at some point`).toBe(true)
+          } else {
+            expect(everOpen, `${day.date} should never read open`).toBe(false)
+          }
+          expect(everUnknown, `${day.date} unknown mismatch`)
+            .toBe(day.openness === 'unknown')
         }
-        expect(everUnknown, `${day.date} unknown mismatch`)
-          .toBe(day.openness === 'unknown')
       }
     })
   }

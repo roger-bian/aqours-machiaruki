@@ -103,6 +103,62 @@ export function minutesInJst(at: Date): number {
   return jstParts(at).minutes;
 }
 
+function pad(n: number): string {
+  return String(n).padStart(2, '0');
+}
+
+/** Index into this array is `Date.getUTCDay()`, and 日曜始まり is also the order
+ *  the calendar's weekday headers use. */
+const WEEKDAY_KEYS: DayKey[] = [
+  'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat',
+];
+
+function isoDate(at: Date): string {
+  return `${at.getUTCFullYear()}-${pad(at.getUTCMonth() + 1)}-${pad(at.getUTCDate())}`;
+}
+
+/** `YYYY-MM-DD` moved by whole days. All arithmetic goes through `Date.UTC`, so
+ *  the device timezone cannot shift which day is which - a plain `new Date(s)`
+ *  would. */
+export function shiftDate(date: string, days: number): string {
+  const [year, month, day] = date.split('-').map(Number);
+  return isoDate(new Date(Date.UTC(year, month - 1, day + days)));
+}
+
+/** Calendar weekday of a `YYYY-MM-DD` string, never `'hol'`. */
+export function weekdayKeyOn(date: string): DayKey {
+  const [year, month, day] = date.split('-').map(Number);
+  return WEEKDAY_KEYS[new Date(Date.UTC(year, month - 1, day)).getUTCDay()];
+}
+
+const WEEKEND: DayKey[] = ['sat', 'sun'];
+
+/** The unbroken run of public holidays immediately before `date`, most recent
+ *  first; empty on an ordinary day. What carries a deferred closure past a whole
+ *  holiday run rather than one day. Bounded because it is a loop over library
+ *  data: the longest real run is Golden Week's four (2026-05-03～06). */
+function holidaysBefore(date: string): string[] {
+  const run: string[] = [];
+  for (let back = 1; back <= 7; back += 1) {
+    const day = shiftDate(date, -back);
+    if (!holidayJp.isHoliday(day)) break;
+    run.push(day);
+  }
+  return run;
+}
+
+/** Whether `date` is the last Mon-Fri of its own month (`毎月最終の平日`). */
+function isLastWeekdayOfMonth(date: string): boolean {
+  const [year, month] = date.split('-').map(Number);
+  // day 0 of the next month is the last day of this one, the same idiom
+  // buildMonthGrid uses for its day count
+  let candidate = isoDate(new Date(Date.UTC(year, month, 0)));
+  while (WEEKEND.includes(weekdayKeyOn(candidate))) {
+    candidate = shiftDate(candidate, -1);
+  }
+  return candidate === date;
+}
+
 /** Whether a date is a stated closure. Read off the **calendar weekday**, never
  *  the schedule key: `定休日 火曜日` shuts every Tuesday, including one that
  *  happens to be 海の日. Keying this on 'hol' let a holiday void the closure
@@ -110,7 +166,8 @@ export function minutesInJst(at: Date): number {
  *  `8:30~18:30` fill in for every day, so 火曜日 + a holiday read 営業 against the
  *  very text stating the closure. Only what the source actually wrote lifts a
  *  weekday closure (`月曜日（祝日は開館）`), and that arrives as
- *  `hol_overrides_closed`. */
+ *  `hol_overrides_closed` - along with the three flags below saying where the
+ *  closure goes instead. */
 function isClosedOn(h: HoursJson, parts: JstParts): boolean {
   // a stated date wins outright, flag or not: 年末年始 spans 元日, and 休館 on
   // 元日 is precisely what those two museums wrote down
@@ -122,9 +179,34 @@ function isClosedOn(h: HoursJson, parts: JstParts): boolean {
   if (h.closed.includes(parts.weekday)) return true;
   // 第二・第四火曜日 - a weekday closure like any other, counted on the calendar
   const nth = Math.floor((parts.dayOfMonth - 1) / 7) + 1;
-  return h.closed_nth.some(
-    (r) => r.day === parts.weekday && r.nth.includes(nth),
-  );
+  if (h.closed_nth.some((r) => r.day === parts.weekday && r.nth.includes(nth))) {
+    return true;
+  }
+  // 毎月最終の平日 - 歴史民俗資料館's monthly maintenance day. Not a closed_nth
+  // rule: it is whichever weekday happens to fall last, not a fixed one.
+  if (h.closed_last_weekday && isLastWeekdayOfMonth(parts.date)) return true;
+
+  // Closures displaced by a 祝日. Only reachable on a day that is not itself a
+  // holiday - a holiday has already returned closed ('hol') or open
+  // (hol_overrides_closed, which every flag below implies).
+  if (!parts.isHoliday && (h.closed_after_hol || h.hol_defers_closed)) {
+    const run = holidaysBefore(parts.date);
+    if (run.length > 0) {
+      // 祝日の翌日（土曜日・日曜日を除く）休館 - fires after *any* holiday, not
+      // only one that landed on the weekly closure
+      if (h.closed_after_hol && !WEEKEND.includes(parts.weekday)) return true;
+      // 月曜日（祝日の場合は翌日）- the weekly closure moved here. Reading the
+      // whole run is what carries it past Golden Week: 2026-05-04 is a closed
+      // Monday and a holiday, 05-05 and 05-06 are holidays too, so the closure
+      // lands on Thursday the 7th - the very day 芹沢's
+      // 休日の翌日（土曜日・日曜日・休日を除く）reaches by its own sentence.
+      if (h.hol_defers_closed
+          && run.some((day) => h.closed.includes(weekdayKeyOn(day)))) {
+        return true;
+      }
+    }
+  }
+  return false;
 }
 
 /** End of whichever interval contains `mins`: the minute it closes, `'open_ended'`

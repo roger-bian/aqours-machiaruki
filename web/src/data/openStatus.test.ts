@@ -26,7 +26,10 @@ function hours(overrides: Partial<HoursJson> = {}): HoursJson {
     closed: [],
     closed_nth: [],
     closed_dates: [],
+    closed_last_weekday: false,
     hol_overrides_closed: false,
+    hol_defers_closed: false,
+    closed_after_hol: false,
     always_open: false,
     irregular: false,
     permanently_closed: false,
@@ -276,6 +279,118 @@ describe('a stated closure landing on a holiday', () => {
       closed: ['mon'], closed_dates: ['01-01'], hol_overrides_closed: true,
     })
     expect(openStatusFor(museum, jst('2026-01-01T12:00'))).toBe('closed')
+  })
+})
+
+// 欧蘭陀館 `月曜日(祝日の場合は翌日)` and ゆきちゃん `月曜日（月曜が祝日の場合、火曜日
+// 休み）`: the closure does not vanish on the holiday, it moves.
+describe('a closure deferred by a 祝日', () => {
+  const defers = hours({
+    weekly: { ...everyDay([540, 1260]), mon: [] },
+    closed: ['mon'],
+    hol_overrides_closed: true,
+    hol_defers_closed: true,
+  })
+
+  it('moves the closure to the following day', () => {
+    // 2026-07-20 is 海の日, a Monday
+    expect(openStatusFor(defers, jst('2026-07-20T12:00'))).toBe('open')
+    expect(openStatusFor(defers, jst('2026-07-21T12:00'))).toBe('closed')
+    expect(closingTimeFor(defers, jst('2026-07-21T12:00'))).toBeNull()
+  })
+
+  it('leaves an ordinary week alone', () => {
+    expect(openStatusFor(defers, jst('2026-07-13T12:00'))).toBe('closed') // 月
+    expect(openStatusFor(defers, jst('2026-07-14T12:00'))).toBe('open') // 火
+    expect(openStatusFor(defers, jst('2026-07-28T12:00'))).toBe('open')
+  })
+
+  it('carries past a whole run of holidays', () => {
+    // 2026-09-21 敬老の日 (月), 09-22 休日, 09-23 秋分の日 - the closure lands on
+    // Thursday the 24th, the same day 芹沢's 休日の翌日（…休日を除く）reaches
+    for (const day of ['21', '22', '23']) {
+      expect(openStatusFor(defers, jst(`2026-09-${day}T12:00`)), day).toBe('open')
+    }
+    expect(openStatusFor(defers, jst('2026-09-24T12:00'))).toBe('closed')
+    expect(openStatusFor(defers, jst('2026-09-25T12:00'))).toBe('open')
+  })
+
+  it('carries across Golden Week', () => {
+    // 2026-05-04 みどりの日 (月), 05-05 こどもの日, 05-06 振替休日
+    for (const day of ['04', '05', '06']) {
+      expect(openStatusFor(defers, jst(`2026-05-${day}T12:00`)), day).toBe('open')
+    }
+    expect(openStatusFor(defers, jst('2026-05-07T12:00'))).toBe('closed')
+  })
+
+  it('ignores a holiday that is not its own 定休日', () => {
+    // 2026-08-11 is 山の日 on a Tuesday; nothing defers, so Wednesday is ordinary
+    expect(openStatusFor(defers, jst('2026-08-11T12:00'))).toBe('open')
+    expect(openStatusFor(defers, jst('2026-08-12T12:00'))).toBe('open')
+  })
+})
+
+// 歴史民俗資料館 `祝日の翌日（土曜日・日曜日を除く）`, 芹沢記念館
+// `休日の翌日（土曜日・日曜日・休日を除く）`: a closure in its own right, firing
+// after *any* holiday rather than only one that hit the weekly 定休日.
+describe('the day after a 祝日', () => {
+  const museum = hours({
+    weekly: { ...everyDay([540, 960]), mon: [] },
+    closed: ['mon'],
+    hol_overrides_closed: true,
+    closed_after_hol: true,
+  })
+
+  it('closes after a holiday on any weekday', () => {
+    // 山の日 is a Tuesday in 2026, so the Wednesday shuts - a deferral would not
+    expect(openStatusFor(museum, jst('2026-08-11T12:00'))).toBe('open')
+    expect(openStatusFor(museum, jst('2026-08-12T12:00'))).toBe('closed')
+    expect(openStatusFor(museum, jst('2026-08-13T12:00'))).toBe('open')
+  })
+
+  it('closes only after the last holiday of a run', () => {
+    for (const day of ['21', '22', '23']) {
+      expect(openStatusFor(museum, jst(`2026-09-${day}T12:00`)), day).toBe('open')
+    }
+    expect(openStatusFor(museum, jst('2026-09-24T12:00'))).toBe('closed')
+  })
+
+  it('excepts a Saturday and a Sunday', () => {
+    // 2026-03-20 春分の日 is a Friday, so the day after is a Saturday
+    expect(openStatusFor(museum, jst('2026-03-21T12:00'))).toBe('open')
+  })
+})
+
+// 歴史民俗資料館 `毎月最終の平日` - a maintenance day, and the reason a plain
+// closed_nth rule cannot express it: it is whichever weekday happens to fall last.
+describe('the last weekday of the month', () => {
+  const monthly = hours({ closed_last_weekday: true })
+
+  it('closes a month ending midweek', () => {
+    // 2026-09-30 is a Wednesday, the last day of the month
+    expect(openStatusFor(monthly, jst('2026-09-30T12:00'))).toBe('closed')
+    expect(openStatusFor(monthly, jst('2026-09-29T12:00'))).toBe('open')
+  })
+
+  it('walks back over a Saturday month-end', () => {
+    // October 2026 ends on Saturday the 31st, so Friday the 30th is the last 平日
+    expect(openStatusFor(monthly, jst('2026-10-30T12:00'))).toBe('closed')
+    expect(openStatusFor(monthly, jst('2026-10-31T12:00'))).toBe('open')
+  })
+
+  it('walks back over a Sunday month-end', () => {
+    // May 2026 ends on Sunday the 31st, Saturday the 30th before it
+    expect(openStatusFor(monthly, jst('2026-05-29T12:00'))).toBe('closed')
+    expect(openStatusFor(monthly, jst('2026-05-30T12:00'))).toBe('open')
+    expect(openStatusFor(monthly, jst('2026-05-31T12:00'))).toBe('open')
+  })
+
+  it('leaves every other month-end open', () => {
+    // 2026-08-31 is a Monday and genuinely the last 平日 of August
+    expect(openStatusFor(monthly, jst('2026-08-31T12:00'))).toBe('closed')
+    expect(openStatusFor(monthly, jst('2026-08-28T12:00'))).toBe('open')
+    expect(openStatusFor(monthly, jst('2026-07-31T12:00'))).toBe('closed') // 金
+    expect(openStatusFor(monthly, jst('2026-07-30T12:00'))).toBe('open')
   })
 })
 
