@@ -1,5 +1,7 @@
 import * as holidayJp from '@holiday-jp/holiday_jp';
-import type { DayKey, HoursJson, Interval, OpenStatus } from './types';
+import type {
+  DayKey, DayOpenness, HoursJson, Interval, OpenStatus,
+} from './types';
 
 /** How long before closing a location reads as "closing soon". */
 export const CLOSING_SOON_MINUTES = 120;
@@ -38,16 +40,33 @@ function jstParts(at: Date): JstParts {
   };
 }
 
-/** The schedule key for a date: 'hol' on a Japanese public holiday (which the
- *  source text treats as its own category in `土日祝` / `日曜日・祝日`),
- *  otherwise the weekday. */
-function scheduleKey(parts: JstParts): DayKey {
-  return holidayJp.isHoliday(parts.date) ? 'hol' : parts.weekday;
+/** Whether the source actually stated a 祝日 schedule, either as hours or as a
+ *  closure. When it did not, `hol` is an absence of information rather than a
+ *  category, and the weekday is better evidence than nothing. */
+function statesHolidays(h: HoursJson): boolean {
+  return (h.weekly?.hol ?? []).length > 0 || h.closed.includes('hol');
 }
 
-/** Exposed for the detail panel, which shows today's hours. */
+/** The schedule key for a date: 'hol' on a Japanese public holiday (which the
+ *  source text treats as its own category in `土日祝` / `日曜日・祝日`),
+ *  otherwise the weekday.
+ *
+ *  Falls back to the weekday on a holiday the source never mentioned. 明治茶館
+ *  is 定休日 月～金 with no 祝日 hours: read as 'hol' that shop's Tuesday holiday
+ *  escaped its own stated closure and became unknown, when 月～金 plainly covers
+ *  it. Only 2 entries take this path - the other 122 either state 祝日 hours or
+ *  state 祝日 closed. */
+function scheduleKey(h: HoursJson, parts: JstParts): DayKey {
+  if (!holidayJp.isHoliday(parts.date)) return parts.weekday;
+  return statesHolidays(h) ? 'hol' : parts.weekday;
+}
+
+/** The raw calendar key for a date, 'hol' on any public holiday regardless of
+ *  what the source stated. Unlike `scheduleKey` this needs no `HoursJson`, and
+ *  the two deliberately disagree on a holiday whose schedule was never given. */
 export function dayKeyInJst(at: Date): DayKey {
-  return scheduleKey(jstParts(at));
+  const parts = jstParts(at);
+  return holidayJp.isHoliday(parts.date) ? 'hol' : parts.weekday;
 }
 
 // holiday_jp's own date-keyed map. Read directly rather than via `between()`,
@@ -57,10 +76,23 @@ const HOLIDAYS = holidayJp.holidays as Record<
   string, { name: string } | undefined
 >;
 
+/** Japanese name of the public holiday on `date` (`YYYY-MM-DD`), else null.
+ *  Marks 祝日 cells in the monthly calendar, whose schedule can differ from the
+ *  weekday around it. */
+export function holidayNameOn(date: string): string | null {
+  return HOLIDAYS[date]?.name ?? null;
+}
+
 /** Japanese name of the public holiday on `at` in JST (海の日), else null.
  *  Shown by the clock panel. */
 export function holidayNameInJst(at: Date): string | null {
-  return HOLIDAYS[jstParts(at).date]?.name ?? null;
+  return holidayNameOn(jstParts(at).date);
+}
+
+/** Today's date in JST as `YYYY-MM-DD`. The calendar opens on this month and
+ *  highlights this day; never derive either from the device clock. */
+export function jstDateFor(at: Date): string {
+  return jstParts(at).date;
 }
 
 export function minutesInJst(at: Date): number {
@@ -78,12 +110,20 @@ function isClosedOn(h: HoursJson, parts: JstParts, key: DayKey): boolean {
   );
 }
 
-/** End of whichever interval contains `mins`, or null if none does. Shared so
- *  that openStatusFor and closingTimeFor cannot disagree about what "currently
- *  open" means - they each had their own copy of this loop, and drifted. */
-function endOfIntervalAt(intervals: Interval[], mins: number): number | null {
+/** End of whichever interval contains `mins`: the minute it closes, `'open_ended'`
+ *  when the source stated no close, or null when no interval contains it.
+ *
+ *  Shared so that openStatusFor and closingTimeFor cannot disagree about what
+ *  "currently open" means - they each had their own copy of this loop, and
+ *  drifted. The three-way result keeps that single copy now that an end can be
+ *  null; two loops would reintroduce exactly the bug this function prevents. */
+function endOfIntervalAt(
+  intervals: Interval[], mins: number,
+): number | 'open_ended' | null {
   for (const [start, end] of intervals) {
-    if (mins >= start && mins < end) return end;
+    if (mins < start) continue;
+    if (end === null) return 'open_ended';
+    if (mins < end) return end;
   }
   return null;
 }
@@ -91,6 +131,8 @@ function endOfIntervalAt(intervals: Interval[], mins: number): number | null {
 function statusWithin(intervals: Interval[], mins: number): OpenStatus | null {
   const end = endOfIntervalAt(intervals, mins);
   if (end === null) return null;
+  // no stated close, so no way to know a close is approaching
+  if (end === 'open_ended') return 'open';
   return end - mins <= CLOSING_SOON_MINUTES ? 'closing_soon' : 'open';
 }
 
@@ -103,9 +145,10 @@ function formatMinutes(total: number): string {
 }
 
 /** Intervals from `key` that run past midnight, i.e. the ones that belong to
- *  the previous day and are still running now. */
+ *  the previous day and are still running now. A null end is excluded - it says
+ *  the close is unstated, which is not evidence that it is after midnight. */
 function overnightIntervals(h: HoursJson, key: DayKey): Interval[] {
-  return (h.weekly?.[key] ?? []).filter(([, end]) => end > 1440);
+  return (h.weekly?.[key] ?? []).filter(([, end]) => end !== null && end > 1440);
 }
 
 export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
@@ -116,8 +159,9 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
   if (h.always_open) return 'open';
 
   const today = jstParts(now);
-  const todayKey = scheduleKey(today);
-  if (!isClosedOn(h, today, todayKey)) {
+  const todayKey = scheduleKey(h, today);
+  const openToday = !isClosedOn(h, today, todayKey);
+  if (openToday) {
     const status = statusWithin(h.weekly[todayKey] ?? [], today.minutes);
     if (status) return status;
   }
@@ -125,13 +169,19 @@ export function openStatusFor(h: HoursJson | null, now: Date): OpenStatus {
   // A shift that runs past midnight (`11:00~26:00` is stored as [660, 1560])
   // belongs to the previous day, so early-morning "now" has to look back.
   const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
-  const yesterdayKey = scheduleKey(yesterday);
+  const yesterdayKey = scheduleKey(h, yesterday);
   if (!isClosedOn(h, yesterday, yesterdayKey)) {
     const status = statusWithin(
       overnightIntervals(h, yesterdayKey), today.minutes + 1440,
     );
     if (status) return status;
   }
+
+  // Hours are stated for other days but not this one, and no closure covers it
+  // either. `closed` would assert a shutdown the source never wrote - a shop
+  // listing 平日 and 日祝 hours says nothing at all about its Saturday. Checked
+  // after the look-back so an overnight shift still reports open.
+  if (openToday && (h.weekly[todayKey] ?? []).length === 0) return 'hours_unknown';
 
   return 'closed';
 }
@@ -146,20 +196,44 @@ export function closingTimeFor(h: HoursJson | null, now: Date): string | null {
   if (!h || !h.weekly || h.always_open || h.permanently_closed) return null;
 
   const today = jstParts(now);
-  const todayKey = scheduleKey(today);
+  const todayKey = scheduleKey(h, today);
   if (!isClosedOn(h, today, todayKey)) {
+    // only a real minute formats; 'open_ended' falls through to null, which
+    // already means "cannot say" to every caller
     const end = endOfIntervalAt(h.weekly[todayKey] ?? [], today.minutes);
-    if (end !== null) return formatMinutes(end);
+    if (typeof end === 'number') return formatMinutes(end);
   }
 
   const yesterday = jstParts(new Date(now.getTime() - 24 * 60 * 60 * 1000));
-  const yesterdayKey = scheduleKey(yesterday);
+  const yesterdayKey = scheduleKey(h, yesterday);
   if (!isClosedOn(h, yesterday, yesterdayKey)) {
     const end = endOfIntervalAt(
       overnightIntervals(h, yesterdayKey), today.minutes + 1440,
     );
-    if (end !== null) return formatMinutes(end);
+    if (typeof end === 'number') return formatMinutes(end);
   }
 
   return null;
+}
+
+/** Whether a location is open at some point on the JST calendar date `date`
+ *  (`YYYY-MM-DD`) - the only question the monthly calendar asks.
+ *
+ *  Built from the same isClosedOn/scheduleKey pair as openStatusFor, so the grid
+ *  and the marker ring cannot disagree about whether a day is a closure.
+ *
+ *  An interval from the *previous* day running past midnight does not make this
+ *  day open: "still serving at 01:00 because last night's shift has not ended"
+ *  is not a day you can plan a visit around, and openStatusFor's look-back
+ *  already covers the clock question. One corpus entry is overnight. */
+export function dayOpennessFor(h: HoursJson, date: string): DayOpenness {
+  if (h.permanently_closed) return 'closed';
+  if (!h.weekly) return 'unknown';
+  if (h.always_open) return 'open';
+
+  const parts = jstParts(new Date(`${date}T00:00:00+09:00`));
+  const key = scheduleKey(h, parts);
+  if (isClosedOn(h, parts, key)) return 'closed';
+  // no hours and no stated closure - the source is silent, not negative
+  return (h.weekly[key] ?? []).length > 0 ? 'open' : 'unknown';
 }

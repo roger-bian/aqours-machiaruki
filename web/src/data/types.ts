@@ -1,8 +1,13 @@
 export type DayKey = 'mon' | 'tue' | 'wed' | 'thu' | 'fri' | 'sat' | 'sun' | 'hol';
 
 /** `[startMinute, endMinute]` from midnight - 600 is 10:00. An end past 1440
- *  means the shift runs into the next day (`11:00~26:00` is `[660, 1560]`). */
-export type Interval = [number, number];
+ *  means the shift runs into the next day (`11:00~26:00` is `[660, 1560]`).
+ *
+ *  A **null** end means the source stated an opening time and no close
+ *  (公演終了時間). Such a day is open, but never `closing_soon` and never
+ *  overnight - both would claim an hour nobody wrote down. Only the override
+ *  tier writes one; see pipeline/app/hours.py. */
+export type Interval = [number, number | null];
 
 /** Mirrors the `hours_json` jsonb column, written by pipeline/app/hours.py.
  *  PostgREST returns jsonb as real nested JSON, so this arrives parsed. */
@@ -25,8 +30,17 @@ export type OpenStatus =
   | 'open'
   | 'closing_soon'
   | 'closed'
-  | 'permanently_closed'
-  | 'unknown';
+  /** hours are known for other days but not today's - reporting `closed` here
+   *  would assert a closure the source never wrote */
+  | 'hours_unknown'
+  /** no schedule at all: `hours_json` or its `weekly` is null */
+  | 'unknown'
+  | 'permanently_closed';
+
+/** Whether a location is open at some point on a whole calendar day, which is
+ *  all the monthly calendar asks. Deliberately not `OpenStatus` - a day has no
+ *  closing time, so `closing_soon` is meaningless at this granularity. */
+export type DayOpenness = 'open' | 'closed' | 'unknown';
 
 /** The four fields whose line breaks are decided in the pipeline. */
 export type DisplayField = 'name' | 'address' | 'hours' | 'holidays';

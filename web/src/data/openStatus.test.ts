@@ -189,6 +189,102 @@ describe('closures', () => {
   })
 })
 
+// 祝日 is its own schedule category only where the source stated one. Where it
+// did not, treating the day as 'hol' voids whatever the weekday said: 明治茶館 is
+// 定休日 月～金 with no 祝日 hours, and 海の日 on a Monday used to escape that
+// closure and land on an empty 'hol' instead of being plainly shut.
+describe('a holiday the source never mentioned', () => {
+  it('falls back to the weekday closure', () => {
+    const weekdaysShut = hours({
+      weekly: weekly({ sat: [[600, 960]], sun: [[600, 960]] }),
+      closed: ['mon', 'tue', 'wed', 'thu', 'fri'],
+    })
+    // 2026-07-20 is 海の日 and a Monday
+    expect(openStatusFor(weekdaysShut, jst('2026-07-20T12:00'))).toBe('closed')
+  })
+
+  it('falls back to the weekday hours', () => {
+    const noHolidayHours = hours({ weekly: weekly({ mon: [[600, 1200]] }) })
+    expect(openStatusFor(noHolidayHours, jst('2026-07-20T12:00'))).toBe('open')
+    expect(closingTimeFor(noHolidayHours, jst('2026-07-20T12:00'))).toBe('20:00')
+  })
+
+  it('still prefers hol once the source states it, as hours or as a closure', () => {
+    const statedHours = hours({
+      weekly: weekly({ mon: [[600, 1200]], hol: [[600, 720]] }),
+    })
+    // 11:00 on 海の日: the hol interval ends at 12:00, the mon one at 20:00
+    expect(openStatusFor(statedHours, jst('2026-07-20T11:00'))).toBe('closing_soon')
+
+    const statedClosed = hours({
+      weekly: weekly({ mon: [[600, 1200]] }),
+      closed: ['hol'],
+    })
+    expect(openStatusFor(statedClosed, jst('2026-07-20T12:00'))).toBe('closed')
+  })
+})
+
+describe('a day the source says nothing about', () => {
+  // a shop listing 平日 and 日祝 hours has stated nothing at all about its
+  // Saturday. Reporting 営業時間外 there asserts a closure nobody wrote.
+  const noSaturday = hours({
+    weekly: weekly({
+      mon: [[600, 1110]], tue: [[600, 1110]], thu: [[600, 1110]],
+      fri: [[600, 1110]], sun: [[600, 1080]], hol: [[600, 1080]],
+    }),
+    closed: ['wed'],
+  })
+
+  it('reports hours_unknown rather than closed', () => {
+    // 2026-08-01 is a Saturday
+    expect(openStatusFor(noSaturday, jst('2026-08-01T12:00'))).toBe('hours_unknown')
+  })
+
+  it('still reports a stated closure as closed', () => {
+    expect(openStatusFor(noSaturday, jst('2026-07-29T12:00'))).toBe('closed')
+  })
+
+  it('has no closing time to report', () => {
+    expect(closingTimeFor(noSaturday, jst('2026-08-01T12:00'))).toBeNull()
+  })
+
+  it('loses to an overnight shift still running from yesterday', () => {
+    // checked after the look-back: 'hours_unknown' must not pre-empt a bar that
+    // is genuinely still open at 01:00 on a day of its own it never described
+    const overnightIntoGap = hours({
+      weekly: weekly({ fri: [[1080, 1680]] }),
+    })
+    // 2026-08-01 is a Saturday; Friday's shift runs to 04:00, far enough out
+    // that this is plainly 'open' rather than 'closing_soon'
+    expect(openStatusFor(overnightIntoGap, jst('2026-08-01T01:00'))).toBe('open')
+    expect(openStatusFor(overnightIntoGap, jst('2026-08-01T12:00'))).toBe('hours_unknown')
+  })
+})
+
+describe('an opening time with no stated close', () => {
+  // 沼津ラクーンよしもと劇場: 土日祝 open 11:30 and close at 公演終了時間
+  const openEnded = hours({
+    weekly: weekly({ mon: [[900, 1080]], sat: [[690, null]] }),
+  })
+
+  it('is open from its start with no closing time claimed', () => {
+    expect(openStatusFor(openEnded, jst('2026-08-01T12:00'))).toBe('open')
+    expect(closingTimeFor(openEnded, jst('2026-08-01T12:00'))).toBeNull()
+  })
+
+  it('never reads closing_soon, at any hour', () => {
+    // there is no stated close, so nothing can be approaching one
+    for (const at of ['12:00', '20:00', '23:00', '23:59']) {
+      const status = openStatusFor(openEnded, jst(`2026-08-01T${at}`))
+      expect(status, at).toBe('open')
+    }
+  })
+
+  it('is not open before its start', () => {
+    expect(openStatusFor(openEnded, jst('2026-08-01T11:00'))).toBe('closed')
+  })
+})
+
 describe('shifts running past midnight', () => {
   // 11:00~26:00 is stored as [660, 1560]; the shift belongs to the previous day,
   // so an early-morning "now" has to look back or every late-night bar reads shut
@@ -203,22 +299,43 @@ describe('shifts running past midnight', () => {
     expect(openStatusFor(overnight, jst('2026-07-28T01:00'))).toBe('closing_soon')
   })
 
+  // these three state 定休日 for the Tuesday under test so the expected value
+  // stays a plain 'closed'. Without it Tuesday has no hours *and* no stated
+  // closure, which is 'hours_unknown' - a true answer, but about the source
+  // being silent rather than about the look-back these tests exist to pin.
   it('is closed once the overnight shift has ended', () => {
-    const overnight = hours({ weekly: weekly({ mon: [[660, 1560]] }) })
+    const overnight = hours({
+      weekly: weekly({ mon: [[660, 1560]] }),
+      closed: ['tue'],
+    })
     expect(openStatusFor(overnight, jst('2026-07-28T03:00'))).toBe('closed')
   })
 
   it('does not look back into a day the location was closed', () => {
     const overnight = hours({
       weekly: weekly({ mon: [[660, 1560]] }),
+      closed: ['tue'],
       closed_dates: ['07-27'],
     })
     expect(openStatusFor(overnight, jst('2026-07-28T01:00'))).toBe('closed')
   })
 
   it('only looks back at intervals that actually cross midnight', () => {
-    const daytime = hours({ weekly: weekly({ mon: [[600, 1200]] }) })
+    const daytime = hours({
+      weekly: weekly({ mon: [[600, 1200]] }),
+      closed: ['tue'],
+    })
     expect(openStatusFor(daytime, jst('2026-07-28T01:00'))).toBe('closed')
+  })
+
+  it('does not treat an unstated close as running past midnight', () => {
+    // a null end says the close is unknown, which is not evidence it is after
+    // midnight - reading it as overnight would have the theater open at 03:00
+    const openEnded = hours({
+      weekly: weekly({ mon: [[690, null]] }),
+      closed: ['tue'],
+    })
+    expect(openStatusFor(openEnded, jst('2026-07-28T03:00'))).toBe('closed')
   })
 })
 

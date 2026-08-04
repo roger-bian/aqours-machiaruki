@@ -9,12 +9,16 @@ export const MARKER_SIZE = 36;
 // Fill already encodes collection progress, so open-status rides an
 // independent channel: a ring around the marker. `unknown` draws no ring at
 // all - a confident colour for a location whose hours aren't derivable would
-// be worse than showing nothing.
+// be worse than showing nothing. `hours_unknown` draws none for the same
+// reason: a ring answers "can I go right now", and for either kind of unknown
+// the honest answer is nothing. The detail panel's badge has room for words and
+// says which of the two it is.
 export const RING_COLORS: Record<OpenStatus, string | null> = {
   open: '#22c55e',
   closing_soon: '#f59e0b',
   closed: '#ef4444',
   permanently_closed: '#000000',
+  hours_unknown: null,
   unknown: null,
 };
 export const RING_WIDTH = 3;

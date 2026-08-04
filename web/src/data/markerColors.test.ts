@@ -58,10 +58,14 @@ describe('ringColorFor', () => {
     }
   })
 
-  it('draws no ring for unknown', () => {
+  it('draws no ring for either kind of unknown', () => {
     // a confident colour for a location whose hours aren't derivable would be
-    // worse than showing nothing - 不定休 is not something a parser can resolve
+    // worse than showing nothing - 不定休 is not something a parser can resolve.
+    // hours_unknown is the same call at day granularity: a ring answers "can I
+    // go right now", and there the honest answer is nothing. The detail panel's
+    // badge has room for words and distinguishes the two.
     expect(ringColorFor('unknown')).toBeNull()
+    expect(ringColorFor('hours_unknown')).toBeNull()
   })
 
   it('distinguishes all four ring colours', () => {
@@ -103,6 +107,18 @@ describe('matchesFilters', () => {
       filters('open_now'), DURING_HOURS)).toBe(false)
     expect(matchesFilters({ stamp: false, badge: false, hours_json: null },
       filters('open_now'), DURING_HOURS)).toBe(false)
+    // a day the source never described is not a day the filter can promise is
+    // open, so hours_unknown has to fail it the same way
+    const noSaturday = hours({
+      weekly: {
+        mon: [[600, 1200]], tue: [[600, 1200]], wed: [[600, 1200]],
+        thu: [[600, 1200]], fri: [[600, 1200]], sat: [], sun: [[600, 1200]],
+        hol: [[600, 1200]],
+      },
+    })
+    // 2026-08-01 is a Saturday
+    expect(matchesFilters({ stamp: false, badge: false, hours_json: noSaturday },
+      filters('open_now'), new Date('2026-08-01T03:00:00Z'))).toBe(false)
   })
 
   it('stacks the two filters with AND', () => {

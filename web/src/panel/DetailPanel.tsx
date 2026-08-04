@@ -122,6 +122,9 @@ const STATUS_LABELS: Record<OpenStatus, string | null> = {
   closing_soon: 'まもなく閉店',
   closed: '営業時間外',
   permanently_closed: '閉店しました',
+  // the source gave hours for other days but not today's; saying 営業時間外
+  // would invent a closure, and saying nothing would look like a parse failure
+  hours_unknown: '営業時間不明',
   unknown: null,
 };
 
