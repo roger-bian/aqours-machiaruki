@@ -195,6 +195,19 @@ def _parse_hours(raw):
     for d in DAYS:
         if not weekly[d]:
             weekly[d] = [list(r) for r in default]
+    # 平日 in older Japanese usage means "not Sunday/holiday" - the six-day week
+    # - so a source scoping hours to 平日 and 日祝 while never mentioning 土曜 is
+    # stating Saturday inside the 平日 group, not omitting it. Two shops
+    # (JEWELRY＆WATCH 市川, つじ写真館) are written that way, and their Saturdays
+    # used to fall through the hole between 平日 and 日祝 - no hours, no stated
+    # closure, so the ring called them closed. Guarded on 土 being genuinely
+    # absent: an explicit 土 scope fills weekly['sat'] above, and a 土曜 定休日
+    # empties it again in parse_hours_holidays.
+    weekdays = [weekly[d] for d in ORDER[:5]]
+    if ('@wd' in body and not weekly['sat']
+            and (weekly['sun'] or weekly['hol'])
+            and all(h and h == weekdays[0] for h in weekdays)):
+        weekly['sat'] = [list(r) for r in weekdays[0]]
     return weekly, False
 
 
