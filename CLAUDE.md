@@ -290,6 +290,15 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   opening time. Inventing an end is the other wrong answer: the ring claims
   まもなく閉店 at an hour nobody wrote. Frontend: `'open'`, never `closing_soon`,
   never overnight.
+- **`hol_overrides_closed` = "a 祝日 lifts this location's weekday closures"**,
+  written *only* by the override tier (4 entries: 欧蘭陀館, ゆきちゃん, 歴史民俗
+  資料館, 芹沢記念館 — each states `祝日は開館`/`祝日の場合は翌日`). The rule tier
+  always emits `false`: a plain `火曜日` shuts every Tuesday, 海の日 included, and
+  lifting a stated closure off a parenthetical is a judgement call — same
+  reasoning as the null interval end, same golden-test guard (`true` ⇒
+  `confidence != 'auto'`, plus a `notes` caveat and a closure to lift).
+  Frontend: `isClosedOn` reads closures off the **calendar weekday**, `closed_dates`
+  still outranking the flag (both museums' 年末年始 spans 元日).
 - **`平日` covers 土曜 when 土 is never mentioned** (post-pass at the end of
   `_parse_hours`). Older usage — 平日 = "not Sunday/holiday", the six-day week.
   市川/つじ写真館 write `平日` + `日祝` and never name 土曜, so their Saturdays fell through
@@ -481,13 +490,24 @@ single unbreakable token the fast path answers with no entry at all.
     real data (all 5 gaps are fixed upstream) — kept as the safety net for a
     *new* location on the auto tier, where the alternative is a silent wrong
     休み. Covered by synthetic fixtures only.
-  - **An unstated 祝日 falls back to the calendar weekday** (`scheduleKey`, which
-    therefore takes `h`). 明治茶館 is 定休日 月～金 with no 祝日 hours; read as
-    `'hol'`, 海の日 on a Monday *escaped* its own stated closure. Only 2 entries
+  - **Closures read on the calendar, hours on the schedule key** — the split
+    that keeps 祝日 from voiding a 定休日. `isClosedOn` matches
+    `closed`/`closed_nth` against the **calendar weekday** always (plus `'hol'`
+    on a holiday), so `定休日 火曜日` shuts a 火曜日 that happens to be 山の日; only
+    the source's own exception lifts it, via `hol_overrides_closed` (see
+    "Business hours"), and `closed_dates` outranks even that. Keying the
+    closure on the schedule key instead was #120 古安's bug: its blanket
+    `8:30～18:30` fills `weekly.hol` too, so a holiday Tuesday found no `'hol'`
+    closure → green ring and 営業 in the calendar, directly above the 火曜日 the
+    panel was displaying. 33 of the 44 affected entries never mention 祝日 at
+    all.
+  - **An unstated 祝日 falls back to the weekday's *hours*** (`scheduleKey`,
+    which therefore takes `h`). 明治茶館 states 土曜・日曜 hours and no 祝日 ones;
+    read as `'hol'`, a Saturday holiday landed on an empty schedule and became
+    営業時間不明 against text that plainly gave that day hours. Only 2 entries
     take this path — the other 122 state 祝日 hours (109) or 祝日 closed (13), and
-    those still win. `closed_nth` keeps matching the **calendar** weekday, so
-    第3月曜日 still fires on 海の日. Exported `dayKeyInJst` is the *raw* key and
-    deliberately disagrees on such a day; it has no app caller, only tests.
+    those still win. Exported `dayKeyInJst` is the *raw* key and deliberately
+    disagrees on such a day; it has no app caller, only tests.
   - `endOfIntervalAt` returns `number | 'open_ended' | null` — **one** loop,
     not two. It exists because `openStatusFor`/`closingTimeFor` each kept a
     copy and drifted; a null end must not reintroduce that.
