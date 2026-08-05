@@ -10,6 +10,10 @@ SUPABASE_BUCKET = os.environ.get('SUPABASE_BUCKET', '')
 # must not be able to block a pipeline run forever
 TIMEOUT = 30
 
+# how many objects to ask for per list call. Not a promise: the server is free
+# to return fewer, which is why the paging loop below stops on an *empty* page
+LIST_PAGE_SIZE = 1000
+
 
 def _auth_headers():
     return {
@@ -18,10 +22,45 @@ def _auth_headers():
     }
 
 
-def object_exists(path):
-    url = f'{SUPABASE_URL}/storage/v1/object/{SUPABASE_BUCKET}/{path}'
-    response = requests.head(url, headers=_auth_headers(), timeout=TIMEOUT)
-    return response.status_code == 200
+def list_object_keys(prefix):
+    """Every existing object key under `prefix`, as a set. `prefix` must not
+    end in a slash - the key is rebuilt as f'{prefix}/{name}'.
+
+    Replaces one HEAD per key: 136 objects went from ~90s of sequential
+    existence checks (a fresh TLS handshake each) to ~450ms.
+
+    Two quirks of this endpoint, both confirmed against the live API, neither
+    obvious from the docs. `name` comes back *relative* to the prefix ("1",
+    not "locations/1") - callers want full keys, so the prefix is pasted back
+    on. And pseudo-folders are listed alongside real objects, distinguishable
+    only by a null `id`; a folder entry would otherwise become a key that no
+    object has.
+
+    Stops on an empty page rather than a short one. `limit=1000` returning 136
+    rows proves the server's cap is >=136, not >=1000 - a cap anywhere in
+    between would silently truncate a grown bucket. One extra round trip buys
+    immunity, and a truncated set is invisible: it just re-downloads every
+    photo it failed to see from a CDN that rate-limits repeats.
+    """
+    url = f'{SUPABASE_URL}/storage/v1/object/list/{SUPABASE_BUCKET}'
+    keys = set()
+    offset = 0
+    while True:
+        response = requests.post(
+            url,
+            headers=_auth_headers(),
+            json={'prefix': prefix, 'limit': LIST_PAGE_SIZE, 'offset': offset},
+            timeout=TIMEOUT,
+        )
+        response.raise_for_status()
+        page = response.json()
+        if not page:
+            return keys
+        keys.update(f'{prefix}/{entry["name"]}'
+                    for entry in page if entry.get('id') is not None)
+        # by len(page), not LIST_PAGE_SIZE - identical for a full page, correct
+        # if the server ever returns fewer than asked for
+        offset += len(page)
 
 
 def download_object(path):

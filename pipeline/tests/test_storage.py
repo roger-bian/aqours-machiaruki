@@ -1,8 +1,11 @@
 """Tests for app/storage.py, the Supabase Storage client.
 
-`download_object`'s 400-means-404 branch is the interesting one: it encodes a
-quirk of the live API that is not documented anywhere obvious, and the bootstrap
-path (first ever run, no baseline KML yet) depends on it.
+Two branches here encode quirks of the live API that are not documented
+anywhere obvious. `download_object`'s 400-means-404, which the bootstrap path
+(first ever run, no baseline KML yet) depends on. And `list_object_keys`'
+relative names and null-id folder entries - getting either wrong returns a key
+set that silently never matches, whose only symptom is re-downloading every
+photo from a CDN that rate-limits repeats.
 """
 import pytest
 import requests
@@ -26,12 +29,71 @@ class Response:
             raise requests.HTTPError(str(self.status_code))
 
 
-def test_object_exists_only_on_200(monkeypatch):
-    monkeypatch.setattr(requests, 'head', lambda *a, **k: Response(200))
-    assert storage.object_exists('abc') is True
-    monkeypatch.setattr(requests, 'head', lambda *a, **k: Response(404))
-    assert storage.object_exists('abc') is False
+# --- listing ---------------------------------------------------------------
 
+def stub_list(monkeypatch, pages):
+    """Serve `pages` (each a list of entries) to successive POSTs. Returns the
+    request bodies, so the paging arithmetic is assertable."""
+    bodies = []
+
+    def fake_post(url, headers, json, timeout):
+        bodies.append(json)
+        page = pages[len(bodies) - 1] if len(bodies) <= len(pages) else []
+        return Response(200, payload=page)
+
+    monkeypatch.setattr(requests, 'post', fake_post)
+    return bodies
+
+
+def test_list_rebuilds_the_full_key_from_a_relative_name(monkeypatch):
+    """Storage returns `name` relative to the prefix - "1", not "locations/1".
+    Using it as-is yields a set that matches no photo_key(), so every run
+    re-fetches all 136 photos from Google and never errors."""
+    stub_list(monkeypatch, [[{'name': '1', 'id': 'a'}, {'name': '10', 'id': 'b'}]])
+
+    assert storage.list_object_keys('locations') == {'locations/1', 'locations/10'}
+
+
+def test_list_drops_pseudo_folder_entries(monkeypatch):
+    """Folders are listed beside real objects and are distinguishable only by a
+    null id. One would otherwise become a key no object has."""
+    stub_list(monkeypatch, [[
+        {'name': 'sub', 'id': None},
+        {'name': '1', 'id': 'a'},
+    ]])
+
+    assert storage.list_object_keys('locations') == {'locations/1'}
+
+
+def test_list_pages_until_a_page_comes_back_empty(monkeypatch):
+    """Stopping on a *short* page would be the silent-truncation bug: the
+    server's real cap is unknown, so a full-looking page is not proof of more
+    and a short one is not proof of the end. Offset advances by what arrived."""
+    pages = [
+        [{'name': str(i), 'id': str(i)} for i in range(1000)],
+        [{'name': str(i), 'id': str(i)} for i in range(1000, 1036)],
+        [],
+    ]
+    bodies = stub_list(monkeypatch, pages)
+
+    keys = storage.list_object_keys('locations')
+
+    assert len(keys) == 1036
+    assert [b['offset'] for b in bodies] == [0, 1000, 1036]
+    assert {b['prefix'] for b in bodies} == {'locations'}
+    assert {b['limit'] for b in bodies} == {storage.LIST_PAGE_SIZE}
+
+
+def test_list_raises_rather_than_reporting_an_empty_bucket(monkeypatch):
+    """An empty set means "nothing is cached", which triggers a full re-download
+    from a CDN that blocks repeats. A permissions or transport failure must not
+    be able to masquerade as that."""
+    monkeypatch.setattr(requests, 'post', lambda *a, **k: Response(403))
+    with pytest.raises(requests.HTTPError):
+        storage.list_object_keys('locations')
+
+
+# --- download / upload -----------------------------------------------------
 
 def test_download_returns_the_bytes(monkeypatch):
     monkeypatch.setattr(requests, 'get', lambda *a, **k: Response(200, b'<kml/>'))
