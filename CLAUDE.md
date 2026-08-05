@@ -162,9 +162,24 @@ local uses plain `GRANT`s).
    upstream → delete that object by hand; a placemark *inserted* mid-KML
    shifts every later id → mass re-download + mass orphans, but that also
    renumbers the stamps, so it's a bigger problem than photos.
-   `object_exists()` first; on a miss, fetch from Google's
-   `mymaps.usercontent.google.com` CDN (blocks/rate-limits repeats) and
-   `upload_object()` (`x-upsert: true`). Storage *is* the dedupe cache — no
+   **One `list_object_keys(PHOTO_PREFIX)` up front**, not a probe per key —
+   136 sequential `object_exists()` HEADs (a fresh TLS handshake each, no
+   `Session`) were ~90s of every run against ~450ms for the listing, 80% of
+   a ~112s steady-state run. `object_exists` deleted with the loop. Two
+   live-API quirks in `app/storage.py`: `name` comes back **relative** to the
+   prefix (`1`, not `locations/1`) — using it raw yields a set matching
+   nothing, whose
+   only symptom is re-downloading all 136 photos; and pseudo-folders are listed
+   beside real objects, told apart only by a **null `id`**. Pages until a page
+   comes back **empty**, not short — `limit=1000` returning 136 proves the
+   server cap is ≥136, not ≥1000. Snapshot, where the probe was live; harmless,
+   a stale "missing" re-uploads identical bytes to the same key under
+   `x-upsert`. Failure mode inverts on purpose: `object_exists` had no
+   `raise_for_status` so a Storage 5xx read as "missing" and the run finished;
+   the listing raises and fails the run before the DB write. On a miss, fetch
+   from Google's `mymaps.usercontent.google.com` CDN (blocks/rate-limits
+   repeats) and `upload_object()` (`x-upsert: true`). Storage *is* the dedupe
+   cache — no
    local disk, since Render's free-plan container has none and a
    restart/redeploy would lose it. Frontend reads the `img_url` column
    (Storage public URL), not a local path.
@@ -199,8 +214,30 @@ local uses plain `GRANT`s).
    frontend writes — don't add `stamp`/`badge` to this query.
    `name`/`lat`/`lon` *are* in `DO UPDATE SET`: the row at position N must
    follow the KML if its text changes. `hours_json`/`display_json` go through
-   `psycopg2.extras.Json` at execute time, so callers hand over plain dicts.
+   `psycopg2.extras.Json` as the batch is built, so callers hand over plain
+   dicts; fresh dicts, never an in-place edit — `app/main.py` counts
+   `unverified` off the same records afterwards.
    Returns `(inserted, updated)`, used by `app/main.py`.
+   **One `execute_values` statement, not a loop** — 136 sequential
+   `execute`+`fetchone` round trips at ~126ms were ~17s of every run.
+   `UPSERT_SQL` + `VALUES_TEMPLATE` are halves of one statement (pasted into
+   the single `%s`) → anything asserted about "the SQL" must check both, and
+   **every `%(…)s` must stay out of `UPSERT_SQL`**: psycopg2's `_split_sql`
+   regex-splits on `(%.)` and raises `unsupported format character` on a
+   leftover one — a crash, not a warning. `UPSERT_PAGE_SIZE = 1000` so 136 fit
+   in one round trip; the default 100 would silently make it two. Only the
+   `True`/`False` counts are read off `RETURNING` — row order is unpromised
+   (psycopg2 orders whole pages, Postgres promises nothing without
+   `ORDER BY`); what *is* guaranteed is one result row per input row. Don't
+   swap the counting for `cur.rowcount` — `execute_values` doesn't aggregate
+   it. A repeated `id` in one `VALUES` list is now a hard
+   `21000 cardinality_violation` where the loop applied both writes;
+   unconstructible since the id comes from `enumerate`. Explicit
+   `connect`/`try`/`finally close()`, not `with psycopg2.connect(...)` — that
+   commits but never closes, leaking a connection per run against Supabase's
+   pooler; the explicit `conn.commit()` is now the only one, so an early
+   `return` added inside the `try` would roll back silently and still report
+   success.
    **Why not the old `(name, lat, lon)` natural key**: `name` isn't stable.
    Two placemarks carry a literal newline in `<name>` (`海鮮丼と魚河岸定食\nかもめ丸`,
    `ラブライブ！サンシャイン!!\nプレミアムショップ`) and one run emitted them
@@ -240,6 +277,16 @@ local uses plain `GRANT`s).
    regenerate commands, so one number would hide which to run. A row can
    legitimately be verified for one and auto for the other. Both surfaced in
    `RefreshDataButton`'s toast, as one 未確認 figure with the split behind it.
+   **Stage timings** via `_stage(name)` around each step of `_run_pipeline`,
+   plus `logger.exception` beside every `finish('error', …)`. Needs
+   `logging.basicConfig` — uvicorn configures its own loggers, not root, so an
+   INFO record otherwise dies at logging's `lastResort` (WARNING+); and the run
+   is a `BackgroundTask`, so it emits no access-log line either → a
+   minutes-long run was indistinguishable from an idle process in Render's log
+   stream, and `str(e)` in `last_error` was the only trace of a failure.
+   `pipeline/Dockerfile` sets `PYTHONUNBUFFERED=1` — Docker stdout is a
+   block-buffered pipe, so timings could sit in an 8 KB buffer or vanish when
+   the free-plan container spins down.
    `GET /pipeline/status` exposes state for polling. A rejected/failed run
    still leaves DB/baseline untouched — only *when* the pipeline runs/reports
    changed, not validation/rollback semantics. Baseline KML in Supabase
@@ -700,7 +747,10 @@ month-sweep agreement invariant below) — a per-change gate, not a CI ritual.
   `app.main._execute_pipeline_run` runs the real pipeline against production.
 - **Patch `app.images.*`, not `app.storage.*`** — `app/images.py` does
   `from app.storage import ...`, binding those names into its own namespace at
-  import time.
+  import time. Same for **`app.db.execute_values`**, not `psycopg2.extras` —
+  and it's the only seam left that sees the per-row mappings, since the real
+  `execute_values` mogrifies them into one byte string before the cursor hears
+  about them. `test_db.py`'s fakes hang off it; a cursor-level fake can't work.
 - **`tests/fixtures/sample.kml`** — 12 real placemarks trimmed from a live
   export (only photo tokens stubbed), each covering a specific parse shape; see
   the comment at the top of the file. 12 rather than 6 because
