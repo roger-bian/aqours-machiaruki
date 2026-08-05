@@ -1,4 +1,7 @@
+import logging
 import tempfile
+import time
+from contextlib import contextmanager
 
 from dotenv import load_dotenv
 
@@ -27,7 +30,27 @@ from app.validation import PipelineValidationError, validate_structure
 BASELINE_KML_KEY = '_pipeline/baseline.kml'
 KML_CONTENT_TYPE = 'application/vnd.google-earth.kml+xml'
 
+# uvicorn configures its own loggers, not the root one - without basicConfig an
+# INFO record here falls through to logging's lastResort handler, which drops
+# anything below WARNING. The run happens in a BackgroundTask and so produces no
+# access-log line either: without these, a minutes-long run is indistinguishable
+# from an idle process in Render's log stream.
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title='machiaruki-pipeline')
+
+
+@contextmanager
+def _stage(name):
+    """Log a step's wall clock. The pipeline is ~all network latency, so which
+    step is slow is the only diagnostic question worth asking, and it was
+    previously unanswerable without reproducing the run locally."""
+    start = time.perf_counter()
+    try:
+        yield
+    finally:
+        logger.info('%s: %.0f ms', name, (time.perf_counter() - start) * 1000)
 
 # the frontend now sends a real Authorization header (Auth0 ID token) on
 # cross-origin requests, so a wildcard origin is no longer appropriate
@@ -89,30 +112,36 @@ def _run_pipeline():
     """The actual fetch/validate/cache/upsert cycle. Returns the row counts for
     a successful run and raises on anything else - reporting is the caller's
     job, so that every outcome funnels through one place."""
-    baseline_count = _baseline_count()
+    run_start = time.perf_counter()
+    with _stage('baseline'):
+        baseline_count = _baseline_count()
 
     with tempfile.NamedTemporaryFile(suffix='.kml') as new_tmp:
-        fetch_kml(new_tmp.name)
-        with open(new_tmp.name, 'rb') as f:
-            new_kml_bytes = f.read()
-        placemarks = load_placemarks(new_tmp.name)
-        records = _build_records(placemarks)
-        fields_by_row = [
-            {
-                'address': r['address'],
-                'img_url': r['_raw_img_url'],
-                'hours': r['hours'],
-            }
-            for r in records
-        ]
-        validate_structure(placemarks, baseline_count, fields_by_row)
+        with _stage('fetch + parse KML'):
+            fetch_kml(new_tmp.name)
+            with open(new_tmp.name, 'rb') as f:
+                new_kml_bytes = f.read()
+            placemarks = load_placemarks(new_tmp.name)
+        with _stage('build + validate'):
+            records = _build_records(placemarks)
+            fields_by_row = [
+                {
+                    'address': r['address'],
+                    'img_url': r['_raw_img_url'],
+                    'hours': r['hours'],
+                }
+                for r in records
+            ]
+            validate_structure(placemarks, baseline_count, fields_by_row)
 
-        img_urls = cache_images(records)
+        with _stage('cache_images'):
+            img_urls = cache_images(records)
         for record, img_url in zip(records, img_urls):
             record['img_url'] = img_url
             del record['_raw_img_url']
 
-        inserted, updated = upsert_locations(records)
+        with _stage('upsert'):
+            inserted, updated = upsert_locations(records)
         # rows the committed overrides didn't cover, so their schedule came
         # from the rule-based tier and hasn't been eyeballed by a human -
         # surfaced in the frontend toast so the gap is pulled, not remembered
@@ -126,7 +155,10 @@ def _run_pipeline():
 
     # only now, having successfully validated and upserted, does the new
     # download replace the accepted-structure baseline for the next run
-    upload_object(BASELINE_KML_KEY, new_kml_bytes, KML_CONTENT_TYPE)
+    with _stage('promote baseline'):
+        upload_object(BASELINE_KML_KEY, new_kml_bytes, KML_CONTENT_TYPE)
+    logger.info('pipeline run finished in %.1f s (%d inserted, %d updated)',
+                time.perf_counter() - run_start, inserted, updated)
     return {'inserted': inserted, 'updated': updated, 'unverified': unverified,
             'unverified_lines': unverified_lines}
 
@@ -151,8 +183,12 @@ def _execute_pipeline_run():
     try:
         details = _run_pipeline()
     except PipelineValidationError as e:
+        # str(e) is all pipeline_state can carry; without this the traceback
+        # is swallowed by the blanket handler below and never reaches Render
+        logger.exception('KML structure validation failed')
         pipeline_state.finish('error', f'KML structure validation failed: {e}')
     except Exception as e:
+        logger.exception('pipeline processing error')
         pipeline_state.finish('error', f'pipeline processing error: {e}')
     else:
         pipeline_state.finish('success', details=details)

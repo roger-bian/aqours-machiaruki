@@ -5,6 +5,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 ENV CPLUS_INCLUDE_PATH=/usr/include/gdal
 ENV C_INCLUDE_PATH=/usr/include/gdal
+# stdout is a block-buffered pipe under Docker - without this the pipeline's
+# stage timings can sit in an 8KB buffer, or vanish entirely when the free-plan
+# container spins down
+ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 COPY requirements.txt .
