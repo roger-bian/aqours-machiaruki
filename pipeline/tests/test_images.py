@@ -16,7 +16,7 @@ pinned here, both of them bugs this module has already had:
 
 Note the patch targets. app/images.py does `from app.storage import ...`, which
 binds those names into its own module namespace at import time, so patching
-`app.storage.object_exists` has no effect at all.
+`app.storage.list_object_keys` has no effect at all.
 """
 import requests
 
@@ -36,15 +36,27 @@ def record(name='ゲーマーズ沼津店', lat=35.10157, lon=138.856807, img_ur
     return {'name': name, 'lat': lat, 'lon': lon, '_raw_img_url': img_url}
 
 
-def stub_storage(monkeypatch, exists=False):
-    """Returns the call log; `uploads` is a list of (key, content, content_type)."""
-    calls = {'exists': [], 'uploads': [], 'fetched': []}
+def stub_storage(monkeypatch, existing=()):
+    """`existing` is the keys already in the bucket - what one
+    list_object_keys() call would return.
+
+    Returns the call log; `listed` is the prefixes it was asked for, `uploads`
+    a list of (key, content, content_type). There is no per-key existence probe
+    to log any more, so which key a location resolves to is read off `uploads`
+    and off the returned URLs instead - the same invariant, observed at the
+    output rather than at the probe.
+    """
+    calls = {'listed': [], 'uploads': [], 'fetched': []}
 
     def fake_get(url, timeout):
         calls['fetched'].append(url)
         return Response()
 
-    monkeypatch.setattr(images, 'object_exists', lambda key: (calls['exists'].append(key), exists)[1])
+    def fake_list(prefix):
+        calls['listed'].append(prefix)
+        return set(existing)
+
+    monkeypatch.setattr(images, 'list_object_keys', fake_list)
     monkeypatch.setattr(images, 'upload_object',
                         lambda key, content, ct: calls['uploads'].append((key, content, ct)))
     monkeypatch.setattr(images, 'public_url', lambda key: f'https://storage/{key}')
@@ -52,14 +64,20 @@ def stub_storage(monkeypatch, exists=False):
     return calls
 
 
+def uploaded_keys(calls):
+    return [key for key, _, _ in calls['uploads']]
+
+
 # --- what the key is made of ----------------------------------------------
 
 def test_keys_are_the_one_based_position(monkeypatch):
     calls = stub_storage(monkeypatch)
 
-    images.cache_images([record(), record(), record()])
+    urls = images.cache_images([record(), record(), record()])
 
-    assert calls['exists'] == ['locations/1', 'locations/2', 'locations/3']
+    assert urls == ['https://storage/locations/1', 'https://storage/locations/2',
+                    'https://storage/locations/3']
+    assert uploaded_keys(calls) == ['locations/1', 'locations/2', 'locations/3']
 
 
 def test_key_is_the_id_not_the_photo_url(monkeypatch):
@@ -72,14 +90,15 @@ def test_key_is_the_id_not_the_photo_url(monkeypatch):
     second = images.cache_images([record(img_url='https://g/token-B')])
 
     assert first == second
-    assert calls['exists'][0] == calls['exists'][1]
+    assert uploaded_keys(calls) == ['locations/1', 'locations/1']
 
 
 def test_key_survives_a_rename_or_a_moved_pin(monkeypatch):
     """The regression test for the orphaned-object bug: under the old
     sha1(name|lat|lon) key, an upstream edit this cosmetic changed the key,
-    re-fetched the identical photo and left the old object behind forever."""
-    calls = stub_storage(monkeypatch, exists=True)
+    re-fetched the identical photo and left the old object behind forever. The
+    literal key in `existing` is now the thing the rename must not move."""
+    calls = stub_storage(monkeypatch, existing={'locations/1'})
 
     before = images.cache_images([record(name='海鮮丼と魚河岸定食\nかもめ丸', lat=35.1, lon=138.8)])
     after = images.cache_images([record(name='海鮮丼と魚河岸定食 かもめ丸', lat=35.2, lon=138.9)])
@@ -109,14 +128,25 @@ def test_the_key_counts_records_not_photos(monkeypatch):
         record(img_url='https://g/photo'),
     ])
 
-    assert calls['exists'] == ['locations/2']
+    assert uploaded_keys(calls) == ['locations/2']
     assert urls == ['', 'https://storage/locations/2']
+
+
+def test_the_bucket_is_listed_once_for_the_whole_run(monkeypatch):
+    """The point of the listing: one call regardless of record count. Per-key
+    existence checks were ~90s of a 136-location run against ~450ms here."""
+    calls = stub_storage(monkeypatch)
+
+    images.cache_images([record(), record(), record()])
+
+    assert calls['listed'] == [images.PHOTO_PREFIX]
 
 
 def test_keys_line_up_with_the_ids_db_will_assign(monkeypatch, placemarks):
     """app/images.py and app/db.py derive the id independently, both from this
     list's order. If the two ever disagreed, a location would render another
     location's photo - so pin them against each other over the real fixture."""
+    from app import db
     from app.db import upsert_locations
     from app.main import _build_records
     import psycopg2
@@ -126,15 +156,9 @@ def test_keys_line_up_with_the_ids_db_will_assign(monkeypatch, placemarks):
     keys = [images.photo_key(i) for i in range(1, len(records) + 1)]
     assert images.cache_images(records) == [f'https://storage/{k}' for k in keys]
 
-    executed = []
+    rows = []
 
     class Cursor:
-        def execute(self, sql, params):
-            executed.append(params)
-
-        def fetchone(self):
-            return (True,)
-
         def __enter__(self):
             return self
 
@@ -148,19 +172,24 @@ def test_keys_line_up_with_the_ids_db_will_assign(monkeypatch, placemarks):
         def commit(self):
             pass
 
-        def __enter__(self):
-            return self
+        def close(self):
+            pass
 
-        def __exit__(self, *exc):
-            return False
+    def fake_execute_values(cur, sql, argslist, template=None, page_size=100,
+                            fetch=False):
+        rows.extend(argslist)
+        return [(True,)] * len(argslist)
 
+    # patched on app.db, not psycopg2.extras - db.py binds the name into its own
+    # namespace at import time, same trap as the note at the top of this file
+    monkeypatch.setattr(db, 'execute_values', fake_execute_values)
     monkeypatch.setattr(psycopg2, 'connect', lambda url: Connection())
     for r in records:
         r['img_url'] = 'https://storage/stub'
         del r['_raw_img_url']
     upsert_locations(records)
 
-    assert [images.photo_key(params['id']) for params in executed] == keys
+    assert [images.photo_key(row['id']) for row in rows] == keys
 
 
 # --- caching behaviour -----------------------------------------------------
@@ -168,23 +197,23 @@ def test_keys_line_up_with_the_ids_db_will_assign(monkeypatch, placemarks):
 def test_an_existing_object_is_not_refetched(monkeypatch):
     """Storage *is* the cache. Google's CDN blocks and rate-limits repeat
     requests, and there is no local disk on the free-plan container to cache to."""
-    calls = stub_storage(monkeypatch, exists=True)
+    calls = stub_storage(monkeypatch, existing={'locations/1'})
 
     urls = images.cache_images([record()])
 
     assert calls['fetched'] == []
     assert calls['uploads'] == []
-    assert urls == [f"https://storage/{calls['exists'][0]}"]
+    assert urls == ['https://storage/locations/1']
 
 
 def test_a_missing_object_is_fetched_and_uploaded(monkeypatch):
-    calls = stub_storage(monkeypatch, exists=False)
+    calls = stub_storage(monkeypatch)
 
     images.cache_images([record(img_url='https://g/photo')])
 
     assert calls['fetched'] == ['https://g/photo']
     key, content, content_type = calls['uploads'][0]
-    assert key == calls['exists'][0]
+    assert key == 'locations/1'
     assert content == b'\xff\xd8jpeg'
     assert content_type == 'image/jpeg'
 

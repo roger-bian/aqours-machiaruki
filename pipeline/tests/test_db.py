@@ -1,7 +1,10 @@
 """Tests for app/db.py.
 
-Two hard invariants live in UPSERT_SQL, both asserted on the SQL string itself so
-they hold without a database.
+Two hard invariants live in the upsert SQL, both asserted on the string itself
+so they hold without a database. The statement is now split across two
+constants - execute_values pastes VALUES_TEMPLATE into UPSERT_SQL's single `%s`
+- so anything about the whole statement has to check `UPSERT_SQL +
+VALUES_TEMPLATE`, or it silently stops covering half of it.
 
 1. `stamp`/`badge` are collection state, written only by the frontend. If they
    ever appear in the INSERT columns or the DO UPDATE SET clause, a データ更新
@@ -20,21 +23,14 @@ import psycopg2
 import pytest
 from psycopg2.extras import Json
 
-from app.db import UPSERT_SQL, upsert_locations
+from app import db
+from app.db import UPSERT_PAGE_SIZE, UPSERT_SQL, VALUES_TEMPLATE, upsert_locations
 from app.main import _build_records
 
 
 class FakeCursor:
-    def __init__(self, inserted_flags):
-        self._inserted_flags = list(inserted_flags)
-        self.executed = []
-
-    def execute(self, sql, params):
-        self.executed.append((sql, params))
-
-    def fetchone(self):
-        return (self._inserted_flags.pop(0),)
-
+    """Nothing is asserted here - execute_values is faked out, so the cursor
+    only has to be a context manager."""
     def __enter__(self):
         return self
 
@@ -43,35 +39,61 @@ class FakeCursor:
 
 
 class FakeConnection:
-    def __init__(self, inserted_flags):
+    def __init__(self):
         self.cursors = []
         self.commits = 0
-        self._inserted_flags = inserted_flags
+        self.closes = 0
 
     def cursor(self):
-        cursor = FakeCursor(self._inserted_flags)
+        cursor = FakeCursor()
         self.cursors.append(cursor)
         return cursor
 
     def commit(self):
         self.commits += 1
 
-    def __enter__(self):
-        return self
+    def close(self):
+        self.closes += 1
 
-    def __exit__(self, *exc):
-        return False
+
+class FakeDb:
+    """Captures the one batched call app/db.py makes.
+
+    Patched at `app.db.execute_values`, not `psycopg2.extras`: db.py imports
+    the name into its own namespace, so patching the origin does nothing (the
+    trap documented at the top of test_images.py). It is also the only seam
+    that still sees the per-row mappings - the real execute_values mogrifies
+    them into a single byte string before the cursor ever hears about them.
+    """
+    def __init__(self, inserted_flags):
+        self.connection = FakeConnection()
+        self.batches = []
+        self._flags = list(inserted_flags)
+
+    def execute_values(self, cur, sql, argslist, template=None, page_size=100,
+                       fetch=False):
+        rows = list(argslist)
+        self.batches.append({'sql': sql, 'rows': rows, 'template': template,
+                             'page_size': page_size, 'fetch': fetch})
+        returned = [(self._flags.pop(0),) for _ in rows]
+        return returned if fetch else None
+
+    @property
+    def rows(self):
+        """Every mapping handed to execute_values, in batch order."""
+        return [row for batch in self.batches for row in batch['rows']]
 
 
 @pytest.fixture
-def fake_connect(monkeypatch):
+def fake_db(monkeypatch):
     """Overrides conftest's no_database guard for this module only."""
-    def connect(inserted_flags):
-        connection = FakeConnection(inserted_flags)
-        monkeypatch.setattr(psycopg2, 'connect', lambda url: connection)
-        return connection
+    def start(inserted_flags):
+        fake = FakeDb(inserted_flags)
+        monkeypatch.setattr(psycopg2, 'connect', lambda url: fake.connection)
+        monkeypatch.setattr(db, 'execute_values', fake.execute_values)
+        return fake
 
-    return connect
+    return start
 
 
 def record(name='ゲーマーズ沼津店', hours_json=None, display_json=None):
@@ -97,8 +119,12 @@ def record(name='ゲーマーズ沼津店', hours_json=None, display_json=None):
 @pytest.mark.parametrize('column', ['stamp', 'badge'])
 def test_upsert_never_mentions_collection_state(column):
     """The pipeline owns every column except these two. A refresh must leave a
-    walked-and-collected location exactly as the user left it."""
-    assert column not in UPSERT_SQL
+    walked-and-collected location exactly as the user left it.
+
+    Both halves: the column list and DO UPDATE SET live in UPSERT_SQL, the
+    per-row values in VALUES_TEMPLATE, and this is the one invariant here whose
+    failure destroys data the source cannot regenerate."""
+    assert column not in UPSERT_SQL + VALUES_TEMPLATE
 
 
 def test_upsert_reports_whether_each_row_was_new():
@@ -120,7 +146,11 @@ def test_upsert_supplies_id_explicitly():
     KML position - and ON CONFLICT DO UPDATE advances that sequence on every row
     it merely updates, so the numbers climb without bound."""
     assert 'INSERT INTO locations (id, name' in UPSERT_SQL
-    assert '%(id)s' in UPSERT_SQL
+    assert '%(id)s' in VALUES_TEMPLATE
+    # and specifically *not* in the other half: psycopg2's _split_sql regex-
+    # splits UPSERT_SQL on (%.) and raises on any %( it finds, so a named
+    # placeholder left behind there is a crash at the first upsert
+    assert '%(id)s' not in UPSERT_SQL
 
 
 @pytest.mark.parametrize('column',
@@ -133,103 +163,117 @@ def test_upsert_lets_a_row_follow_the_kml(column):
     assert f'{column} = EXCLUDED.{column}' in UPSERT_SQL
 
 
-def test_ids_are_the_one_based_position_in_the_batch(fake_connect):
-    connection = fake_connect([True] * 4)
+def test_ids_are_the_one_based_position_in_the_batch(fake_db):
+    fake = fake_db([True] * 4)
 
     upsert_locations([record('A'), record('B'), record('C'), record('D')])
 
-    executed = connection.cursors[0].executed
-    assert [params['id'] for _, params in executed] == [1, 2, 3, 4]
-    assert [params['name'] for _, params in executed] == ['A', 'B', 'C', 'D']
+    assert [row['id'] for row in fake.rows] == [1, 2, 3, 4]
+    assert [row['name'] for row in fake.rows] == ['A', 'B', 'C', 'D']
 
 
-def test_position_wins_over_any_id_on_the_record(fake_connect):
+def test_position_wins_over_any_id_on_the_record(fake_db):
     """The id is derived from list order, never read off the record - so a stale
-    or hand-set id cannot smuggle a wrong stamp number into the table."""
-    connection = fake_connect([True, True])
+    or hand-set id cannot smuggle a wrong stamp number into the table.
+
+    Load-bearing twice over now the batch is one statement: a repeated id in a
+    single VALUES list is a hard 21000 cardinality_violation ("cannot affect row
+    a second time"), where the per-row loop merely applied both writes."""
+    fake = fake_db([True, True])
     first, second = record('A'), record('B')
     first['id'] = 999
     second['id'] = 1478
 
     upsert_locations([first, second])
 
-    executed = connection.cursors[0].executed
-    assert [params['id'] for _, params in executed] == [1, 2]
+    assert [row['id'] for row in fake.rows] == [1, 2]
 
 
-def test_ids_follow_the_kml_placemark_order(fake_connect, placemarks):
+def test_ids_follow_the_kml_placemark_order(fake_db, placemarks):
     """End to end over the real fixture: KML document order is what assigns the
     stamp numbers, so position N in the KML must become id N in the table."""
     records = _build_records(placemarks)
     for r in records:
         r['img_url'] = 'https://storage/stub'
         del r['_raw_img_url']
-    connection = fake_connect([True] * len(records))
+    fake = fake_db([True] * len(records))
 
     upsert_locations(records)
 
-    executed = connection.cursors[0].executed
     expected = [(i, row['Name']) for i, (_, row) in enumerate(placemarks.iterrows(), start=1)]
-    assert [(params['id'], params['name']) for _, params in executed] == expected
+    assert [(row['id'], row['name']) for row in fake.rows] == expected
     # and specifically that it is 1..N with no gaps, which is what makes the
     # marker labels a contiguous stamp numbering rather than surrogate keys
-    assert [params['id'] for _, params in executed] == list(range(1, len(records) + 1))
+    assert [row['id'] for row in fake.rows] == list(range(1, len(records) + 1))
 
 
-def test_a_renamed_placemark_updates_in_place(fake_connect):
+def test_a_renamed_placemark_updates_in_place(fake_db):
     """The 1411/1478 regression, reduced: same position, different name text.
     One statement against the existing id, not an insert of a new row."""
-    connection = fake_connect([False])
+    fake = fake_db([False])
 
     inserted, updated = upsert_locations([record('海鮮丼と魚河岸定食 かもめ丸')])
 
     assert (inserted, updated) == (0, 1)
-    (_, params), = connection.cursors[0].executed
-    assert params['id'] == 1
+    (row,) = fake.rows
+    assert row['id'] == 1
 
 
 # --- behaviour -------------------------------------------------------------
 
-def test_counts_inserts_and_updates_separately(fake_connect):
-    """These two numbers are what the データ更新 toast reports."""
-    connection = fake_connect([True, False, True])
+def test_counts_inserts_and_updates_separately(fake_db):
+    """These two numbers are what the データ更新 toast reports. They come off
+    RETURNING, so the batch has to actually ask for the rows back."""
+    fake = fake_db([True, False, True])
 
     inserted, updated = upsert_locations([record('A'), record('B'), record('C')])
 
     assert (inserted, updated) == (2, 1)
-    assert connection.commits == 1
+    assert fake.batches[0]['fetch'] is True
+    assert fake.connection.commits == 1
+    # `with psycopg2.connect(...)` commits but never closes - one leaked
+    # connection per run against Supabase's pooler
+    assert fake.connection.closes == 1
 
 
-def test_every_record_is_executed_once(fake_connect):
-    connection = fake_connect([True, True])
+def test_the_whole_batch_is_one_statement(fake_db):
+    """The regression test for the batching itself: 136 sequential
+    execute+fetchone round trips at ~126ms each was ~17s of every run."""
+    fake = fake_db([True, True])
 
     upsert_locations([record('A'), record('B')])
 
-    executed = connection.cursors[0].executed
-    assert len(executed) == 2
-    assert [params['name'] for _, params in executed] == ['A', 'B']
+    assert len(fake.batches) == 1
+    assert [row['name'] for row in fake.rows] == ['A', 'B']
+    # one call is not one statement: execute_values splits an argslist longer
+    # than page_size into one statement each. psycopg2's default of 100 would
+    # already split the live 136 locations in two, so the constant is the real
+    # invariant here, not the call count.
+    assert fake.batches[0]['page_size'] == UPSERT_PAGE_SIZE
+    assert UPSERT_PAGE_SIZE >= 1000
 
 
 @pytest.mark.parametrize('column,value', [
     ('hours_json', {'weekly': None, 'confidence': 'auto'}),
     ('display_json', {'name': ['A'], 'extra': [], 'confidence': 'auto'}),
 ])
-def test_a_jsonb_column_is_adapted_at_execute_time(fake_connect, column, value):
-    """Wrapped at execute time so callers hand over a plain dict and never think
-    about serialization."""
-    connection = fake_connect([True])
+def test_a_jsonb_column_is_wrapped_for_the_caller(fake_db, column, value):
+    """Wrapped as the batch is built so callers hand over a plain dict and never
+    think about serialization."""
+    fake = fake_db([True])
 
     upsert_locations([record(**{column: value})])
 
-    _, params = connection.cursors[0].executed[0]
-    assert isinstance(params[column], Json)
-    assert params[column].adapted == value
+    row = fake.rows[0]
+    assert isinstance(row[column], Json)
+    assert row[column].adapted == value
 
 
-def test_the_caller_s_record_is_not_mutated(fake_connect):
+def test_the_caller_s_record_is_not_mutated(fake_db):
     """app/main.py counts `unverified` off these records after the upsert, so a
-    hours_json replaced in place would break that count."""
-    fake_connect([True])
+    hours_json replaced in place would break that count - which is why the batch
+    is built from fresh dicts rather than by editing the records."""
+    fake_db([True])
     original = record()
 
     upsert_locations([original])
@@ -237,7 +281,11 @@ def test_the_caller_s_record_is_not_mutated(fake_connect):
     assert original['hours_json'] == {'confidence': 'verified'}
 
 
-def test_an_empty_batch_touches_nothing(fake_connect):
-    connection = fake_connect([])
+def test_an_empty_batch_touches_nothing(fake_db):
+    """The real execute_values never touches the cursor on an empty argslist -
+    no mogrify, no execute, no fetchall, just []. So there is no early return to
+    write here; the connection does still open, and must still close."""
+    fake = fake_db([])
     assert upsert_locations([]) == (0, 0)
-    assert connection.cursors[0].executed == []
+    assert fake.rows == []
+    assert fake.connection.closes == 1
