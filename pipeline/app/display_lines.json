@@ -342,18 +342,6 @@
   ],
   "confidence": "verified"
  },
- "28d7031d6a26eb23": {
-  "_field": "address",
-  "_names": ["沼津ラクーンよしもと劇場"],
-  "_raw": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階",
-  "_text": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階",
-  "lines": [
-   "沼津市大手町3丁目4番1号",
-   "沼津RAKUUN 4階"
-  ],
-  "extra": [],
-  "confidence": "verified"
- },
  "2a2859d9464d2d5f": {
   "_field": "name",
   "_names": ["Coffee 桜"],
@@ -695,6 +683,22 @@
   "extra": [],
   "confidence": "verified"
  },
+ "4cb5fed447ef1e78": {
+  "_field": "holidays",
+  "_names": ["沼津ラクーンよしもと劇場"],
+  "_raw": "平日：不定休、土日祝：公演によって変動あり<br>営業時間は沼津ラクーンよしもと劇場売店公式Xでご確認ください。<br>https://x.com/nmz_goods<br>JR沼津駅南口を出て徒歩 約1分<br>https://numazu.yoshimoto.co.jp",
+  "_text": "平日：不定休、土日祝：公演によって変動あり\n営業時間は沼津ラクーンよしもと劇場売店公式Xでご確認ください。\nhttps://x.com/nmz_goods\nJR沼津駅南口を出て徒歩 約1分\nhttps://numazu.yoshimoto.co.jp",
+  "lines": [
+   "平日：不定休、土日祝：公演によって変動あり"
+  ],
+  "extra": [
+   "営業時間は沼津ラクーンよしもと劇場売店公式Xでご確認ください。",
+   "https://x.com/nmz_goods",
+   "JR沼津駅南口を出て徒歩 約1分",
+   "https://numazu.yoshimoto.co.jp"
+  ],
+  "confidence": "verified"
+ },
  "4cf85beed95ef0bb": {
   "_field": "name",
   "_names": ["ザ・ブルーウォーター（ＴＨＥ・ＢＬＵＥＷＡＴＥＲ）"],
@@ -742,7 +746,9 @@
    "日・祝日 9:00～17:00"
   ],
   "extra": [],
-  "to_holidays": ["ビル休館日／年末年始、点検日"],
+  "to_holidays": [
+   "ビル休館日／年末年始、点検日"
+  ],
   "confidence": "verified"
  },
  "4efa1ef7aad26338": {
@@ -1090,6 +1096,19 @@
    "10:00～20:00（木曜日は14:00まで）"
   ],
   "extra": [],
+  "confidence": "verified"
+ },
+ "7af62b387def2054": {
+  "_field": "address",
+  "_names": ["沼津ラクーンよしもと劇場"],
+  "_raw": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階<br>TEL／055-946-6612",
+  "_text": "沼津市大手町3丁目4番1号 沼津RAKUUN 4階\nTEL／055-946-6612",
+  "lines": [
+   "沼津市大手町3丁目4番1号 沼津RAKUUN 4階"
+  ],
+  "extra": [
+   "TEL／055-946-6612"
+  ],
   "confidence": "verified"
  },
  "7b3568e3608a0d68": {
@@ -1605,7 +1624,12 @@
    "入館料／無料",
    "（※ただし御用邸記念公園への入園料大人100円、小・中学生50円が必要です）"
   ],
-  "to_holidays": ["休館日／毎週月曜日（祝日は開館）", "毎月最終の平日", "祝日の翌日（土曜日・日曜日を除く）", "年末年始（12月29日～1月3日）"],
+  "to_holidays": [
+   "休館日／毎週月曜日（祝日は開館）",
+   "毎月最終の平日",
+   "祝日の翌日（土曜日・日曜日を除く）",
+   "年末年始（12月29日～1月3日）"
+  ],
   "confidence": "verified"
  },
  "cc88457adddcd4e1": {
@@ -1664,23 +1688,6 @@
   "extra": [
    "※スタンプ及び缶バッジの販売は平成31年3月31日をもって終了しました。"
   ],
-  "confidence": "verified"
- },
- "dd05de311ee45434": {
-  "_field": "hours",
-  "_names": ["沼津ラクーンよしもと劇場"],
-  "_raw": "平日15:00ー18:00　（休館日あり）<br>土日祝11:30ー公演終了時間(公演によって変動あり)<br>JR沼津駅南口を出て徒歩 約1分<br>https://numazu.yoshimoto.co.jp",
-  "_text": "平日15:00ー18:00（休館日あり）\n土日祝11:30ー公演終了時間(公演によって変動あり)\nJR沼津駅南口を出て徒歩 約1分\nhttps://numazu.yoshimoto.co.jp",
-  "_comment": "vague but it is closure information, and 定休日 said なし",
-  "lines": [
-   "平日15:00ー18:00",
-   "土日祝11:30ー公演終了時間(公演によって変動あり)"
-  ],
-  "extra": [
-   "JR沼津駅南口を出て徒歩 約1分",
-   "https://numazu.yoshimoto.co.jp"
-  ],
-  "to_holidays": ["（休館日あり）"],
   "confidence": "verified"
  },
  "e35f792293371cbc": {

@@ -69,12 +69,14 @@ def test_no_entry_is_auto():
 
 
 def test_only_hours_entries_re_home_closure_days():
-    """営業時間 → 定休日 is the only cross-field move, and only three locations
+    """営業時間 → 定休日 is the only cross-field move, and only two locations
     need it: each writes its closures into the opening-hours text and carries no
-    定休日 label at all, so 定休日 used to read なし directly above them."""
+    定休日 label at all, so 定休日 used to read なし directly above them.
+
+    A third used to (沼津ラクーンよしもと劇場, dd05de311ee45434), but upstream
+    dropped its 営業時間 text entirely - nothing left to move out of that field."""
     movers = {k: e['_names'][0] for k, e in ENTRIES if e.get('to_holidays')}
-    assert set(movers) == {'cb1ddb425ab60efd', '4ed0c3c91793cd27',
-                           'dd05de311ee45434'}
+    assert set(movers) == {'cb1ddb425ab60efd', '4ed0c3c91793cd27'}
     assert all(OVERRIDES[k]['_field'] == 'hours' for k in movers)
 
 
