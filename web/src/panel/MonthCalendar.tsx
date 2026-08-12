@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { RING_COLORS } from '../data/markerColors';
 import { jstDateFor } from '../data/openStatus';
 import {
@@ -129,7 +129,12 @@ type Props = {
  *  data/monthCalendar.ts, which is where it can be tested. */
 export function MonthCalendar({ hours, now }: Props) {
   const [shown, setShown] = useState(() => monthOf(now));
-  const grid = buildMonthGrid(hours, shown.year, shown.month);
+  // `now` ticks every 60s in App.tsx, but the grid itself is clock-free -
+  // excluding it from the deps keeps a tick from rebuilding all ~30-42 days
+  const grid = useMemo(
+    () => buildMonthGrid(hours, shown.year, shown.month),
+    [hours, shown.year, shown.month],
+  );
   const today = jstDateFor(now);
 
   function step(delta: number) {
