@@ -103,13 +103,13 @@ export function minutesInJst(at: Date): number {
   return jstParts(at).minutes;
 }
 
-function pad(n: number): string {
+export function pad(n: number): string {
   return String(n).padStart(2, '0');
 }
 
 /** Index into this array is `Date.getUTCDay()`, and 日曜始まり is also the order
  *  the calendar's weekday headers use. */
-const WEEKDAY_KEYS: DayKey[] = [
+export const WEEKDAY_KEYS: DayKey[] = [
   'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat',
 ];
 
@@ -159,6 +159,25 @@ function isLastWeekdayOfMonth(date: string): boolean {
   return candidate === date;
 }
 
+/** Whether `date` (calendar weekday `weekday`, day-of-month `dayOfMonth`)
+ *  carries one of the periodic closures the source stated - a weekly day, an
+ *  第n曜日 rule, or 毎月最終の平日. Shared between `isClosedOn`'s own-day check and
+ *  the deferral run below, so a closure kind added to one automatically reaches
+ *  the other. */
+function isStatedClosure(
+  h: HoursJson, date: string, weekday: DayKey, dayOfMonth: number,
+): boolean {
+  if (h.closed.includes(weekday)) return true;
+  // 第二・第四火曜日 - a weekday closure like any other, counted on the calendar
+  const nth = Math.floor((dayOfMonth - 1) / 7) + 1;
+  if (h.closed_nth.some((r) => r.day === weekday && r.nth.includes(nth))) {
+    return true;
+  }
+  // 毎月最終の平日 - 歴史民俗資料館's monthly maintenance day. Not a closed_nth
+  // rule: it is whichever weekday happens to fall last, not a fixed one.
+  return h.closed_last_weekday && isLastWeekdayOfMonth(date);
+}
+
 /** Whether a date is a stated closure. Read off the **calendar weekday**, never
  *  the schedule key: `定休日 火曜日` shuts every Tuesday, including one that
  *  happens to be 海の日. Keying this on 'hol' let a holiday void the closure
@@ -176,34 +195,27 @@ function isClosedOn(h: HoursJson, parts: JstParts): boolean {
     if (h.closed.includes('hol')) return true;
     if (h.hol_overrides_closed) return false;
   }
-  if (h.closed.includes(parts.weekday)) return true;
-  // 第二・第四火曜日 - a weekday closure like any other, counted on the calendar
-  const nth = Math.floor((parts.dayOfMonth - 1) / 7) + 1;
-  if (h.closed_nth.some((r) => r.day === parts.weekday && r.nth.includes(nth))) {
-    return true;
-  }
-  // 毎月最終の平日 - 歴史民俗資料館's monthly maintenance day. Not a closed_nth
-  // rule: it is whichever weekday happens to fall last, not a fixed one.
-  if (h.closed_last_weekday && isLastWeekdayOfMonth(parts.date)) return true;
+  if (isStatedClosure(h, parts.date, parts.weekday, parts.dayOfMonth)) return true;
 
   // Closures displaced by a 祝日. Only reachable on a day that is not itself a
   // holiday - a holiday has already returned closed ('hol') or open
   // (hol_overrides_closed, which every flag below implies).
   if (!parts.isHoliday && (h.closed_after_hol || h.hol_defers_closed)) {
     const run = holidaysBefore(parts.date);
-    if (run.length > 0) {
-      // 祝日の翌日（土曜日・日曜日を除く）休館 - fires after *any* holiday, not
-      // only one that landed on the weekly closure
-      if (h.closed_after_hol && !WEEKEND.includes(parts.weekday)) return true;
-      // 月曜日（祝日の場合は翌日）- the weekly closure moved here. Reading the
-      // whole run is what carries it past Golden Week: 2026-05-04 is a closed
-      // Monday and a holiday, 05-05 and 05-06 are holidays too, so the closure
-      // lands on Thursday the 7th - the very day 芹沢's
-      // 休日の翌日（土曜日・日曜日・休日を除く）reaches by its own sentence.
-      if (h.hol_defers_closed
-          && run.some((day) => h.closed.includes(weekdayKeyOn(day)))) {
-        return true;
-      }
+    // 祝日の翌日（土曜日・日曜日を除く）休館 - fires after *any* holiday, not
+    // only one that landed on the weekly closure
+    if (h.closed_after_hol && run.length > 0 && !WEEKEND.includes(parts.weekday)) {
+      return true;
+    }
+    // 月曜日（祝日の場合は翌日）- the stated closure moved here. Reading the
+    // whole run is what carries it past Golden Week: 2026-05-04 is a closed
+    // Monday and a holiday, 05-05 and 05-06 are holidays too, so the closure
+    // lands on Thursday the 7th - the very day 芹沢's
+    // 休日の翌日（土曜日・日曜日・休日を除く）reaches by its own sentence.
+    if (h.hol_defers_closed && run.some((day) => isStatedClosure(
+      h, day, weekdayKeyOn(day), Number(day.split('-')[2]),
+    ))) {
+      return true;
     }
   }
   return false;

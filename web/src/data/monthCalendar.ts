@@ -1,5 +1,5 @@
 import {
-  dayOpennessFor, holidayNameOn, jstDateFor, weekdayKeyOn,
+  WEEKDAY_KEYS, dayOpennessFor, holidayNameOn, jstDateFor, pad, weekdayKeyOn,
 } from './openStatus';
 import type { DayKey, DayOpenness, HoursJson } from './types';
 
@@ -11,13 +11,6 @@ const DAY_NAMES: Record<DayKey, string> = {
   mon: '月曜日', tue: '火曜日', wed: '水曜日', thu: '木曜日',
   fri: '金曜日', sat: '土曜日', sun: '日曜日', hol: '祝日',
 };
-
-/** Weekday order for `unknownDays`, matching WEEKDAY_HEADERS. Which weekday a
- *  date *is* comes from openStatus.ts's `weekdayKeyOn` - the closure rules there
- *  need the same mapping, and two copies of it could disagree. */
-const WEEKDAY_ORDER: DayKey[] = [
-  'sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat',
-];
 
 export type CalendarDay = {
   /** `YYYY-MM-DD` */
@@ -74,10 +67,6 @@ export function monthOf(now: Date): { year: number; month: number } {
   return { year: Number(year), month: Number(month) };
 }
 
-function pad(n: number): string {
-  return String(n).padStart(2, '0');
-}
-
 /** Every day of `year`-`month` with its openness.
  *
  *  All date arithmetic goes through `Date.UTC`, never a local-time `Date`, so the
@@ -119,6 +108,6 @@ export function buildMonthGrid(
     month,
     leadingBlanks,
     days,
-    unknownDays: WEEKDAY_ORDER.filter((key) => unknown.has(key)),
+    unknownDays: WEEKDAY_KEYS.filter((key) => unknown.has(key)),
   };
 }
