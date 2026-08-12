@@ -2261,6 +2261,24 @@
   "confidence": "verified",
   "notes": []
  },
+ "b790eaf68ec31ec2": {
+  "_names": ["沼津ラクーンよしもと劇場"],
+  "_raw_hours": "",
+  "_raw_holidays": "平日：不定休、土日祝：公演によって変動あり<br>営業時間は沼津ラクーンよしもと劇場売店公式Xでご確認ください。<br>https://x.com/nmz_goods<br>JR沼津駅南口を出て徒歩 約1分<br>https://numazu.yoshimoto.co.jp",
+  "weekly": null,
+  "closed": [],
+  "closed_nth": [],
+  "closed_dates": [],
+  "closed_last_weekday": false,
+  "hol_overrides_closed": false,
+  "hol_defers_closed": false,
+  "closed_after_hol": false,
+  "always_open": false,
+  "irregular": true,
+  "permanently_closed": false,
+  "confidence": "verified",
+  "notes": ["営業時間は公式X（@nmz_goods）で要確認"]
+ },
  "bd0951eeede0d16e": {
   "_names": ["杉長水産"],
   "_raw_hours": "8:00～17:30",
@@ -3350,33 +3368,6 @@
   "permanently_closed": false,
   "confidence": "verified",
   "notes": []
- },
- "fad7f41f61d1de24": {
-  "_names": ["沼津ラクーンよしもと劇場"],
-  "_raw_hours": "平日15:00ー18:00　（休館日あり）<br>土日祝11:30ー公演終了時間(公演によって変動あり)<br>JR沼津駅南口を出て徒歩 約1分<br>https://numazu.yoshimoto.co.jp",
-  "_raw_holidays": "",
-  "weekly": {
-   "mon": [[900, 1080]],
-   "tue": [[900, 1080]],
-   "wed": [[900, 1080]],
-   "thu": [[900, 1080]],
-   "fri": [[900, 1080]],
-   "sat": [[690, null]],
-   "sun": [[690, null]],
-   "hol": [[690, null]]
-  },
-  "closed": [],
-  "closed_nth": [],
-  "closed_dates": [],
-  "closed_last_weekday": false,
-  "hol_overrides_closed": false,
-  "hol_defers_closed": false,
-  "closed_after_hol": false,
-  "always_open": false,
-  "irregular": true,
-  "permanently_closed": false,
-  "confidence": "verified",
-  "notes": ["土日祝は11:30から公演終了時間まで（公演により変動）", "休館日あり"]
  },
  "ffa2b68c86644560": {
   "_names": ["沼津ラクーン"],

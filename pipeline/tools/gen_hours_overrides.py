@@ -117,21 +117,18 @@ CORRECTIONS = {
         'hol_defers_closed': True,
         'notes': ['月曜が祝日の場合は火曜休み'],
     },
-    # 沼津ラクーンよしもと劇場 - 土日祝 open at 11:30 and close at 公演終了時間,
-    # which is not a time. A null end says "open, close not stated"; leaving the
-    # days empty instead made them indistinguishable from a day the source never
-    # mentioned, so every 土日祝 read as closed against the very text above it.
-    # Inventing an end is not an option either - it would have the ring claim
-    # まもなく閉店 at a time nobody wrote down.
-    'fad7f41f61d1de24': {
-        'weekly': {'mon': [[900, 1080]], 'tue': [[900, 1080]],
-                   'wed': [[900, 1080]], 'thu': [[900, 1080]],
-                   'fri': [[900, 1080]],
-                   'sat': [[690, None]], 'sun': [[690, None]],
-                   'hol': [[690, None]]},
-        'notes': ['土日祝は11:30から公演終了時間まで（公演により変動）',
-                  '休館日あり'],
-        'irregular': True,
+    # 沼津ラクーンよしもと劇場 - upstream dropped 営業時間 entirely and 定休日
+    # now reads 平日：不定休、土日祝：公演によって変動あり (weekdays irregular,
+    # weekends vary by performance, check the shop's own X account). The rule
+    # tier tokenizes 平日/土日祝 as literal weekday names and marks every one
+    # of them closed, when the source states unpredictability, not a 7-day
+    # shutdown. weekly is already None (no 営業時間 stated at all), which is
+    # openStatusFor's honest `unknown` (no ring, no red "closed" claim); closed
+    # must clear too, since a future reorder of that null-weekly guard would
+    # otherwise read this as closed every day of the week.
+    'b790eaf68ec31ec2': {
+        'closed': [],
+        'notes': ['営業時間は公式X（@nmz_goods）で要確認'],
     },
 }
 
