@@ -136,8 +136,11 @@ local uses plain `GRANT`s).
    labels in a CDATA blob). Fields located **by string position**, not by fixed
    neighbours — some entries omit the member/hours label; missing → empty
    string/`'なし'`, never a raise. Touching this: recheck the label-less
-   entries, not just the common case. Returns **both** the display strings
-   (`hours`/`holidays`, cosmetically normalized) and the untouched
+   entries, not just the common case. `会場／` = address fallback
+   (幻のから揚げ, an event stall, has no `住所／`) — an unknown label rides
+   along inside the *preceding* field → without it the venue landed in
+   `member`. Returns **both** the display strings (`hours`/`holidays`,
+   cosmetically normalized) and the untouched
    `raw_address`/`raw_hours`/`raw_holidays` — `app/hours.py` content-addresses
    the raw text, so normalizing first would make its hash depend on cosmetic
    choices here. `app/display.py` hashes the **normalized** text instead, the
@@ -297,11 +300,12 @@ local uses plain `GRANT`s).
 ## Business hours (`pipeline/app/hours.py` → `hours_json`)
 
 Freeform Japanese `営業時間`/`定休日` → a structured schedule the frontend
-evaluates against a clock. Against the live 136-placemark KML: 106 fully
+evaluates against a clock. Against the live 139-placemark KML: 107 fully
 determined by rules, 8 `年中無休`-only → 24h, 13 with `不定休`/`臨時休館`
-closures, 8 permanently closed, 1 with no `営業時間` label at all. (The harness
-reports `irregular: 16` — those 13 plus 3 the override file flags for
-maintenance closures or an unstated end time.)
+closures, 8 permanently closed, 1 with no `営業時間` label at all, 2 with no
+schedule stated anywhere (below). (The harness reports `irregular: 18` — those
+13 plus 5 the override file flags for maintenance/extra closures or no
+schedule.)
 
 **The residual is not a parser weakness** — `不定休` means "irregular
 holidays"; no parser, LLM included, extracts a schedule nobody wrote down. Goal
@@ -318,10 +322,19 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   brackets. Without the override, びゅうお shows a green ring at 16:00 on a
   Thursday when it shut at 14:00 — the rule tier fails *confidently*, not
   loudly. That's what `unverified` is for.
-- **Content-addressed on the raw text**, so identical source text dedupes (136
-  locations → 125 keys; 7 hotels share `年中無休`/`なし`) — hence `_names` is
+- **Content-addressed on the raw text**, so identical source text dedupes (139
+  locations → 128 keys; 7 hotels share `年中無休`/`なし`) — hence `_names` is
   an array. An absent field still hashes fine, which keeps the 三交イン
   `manual` entry stable across runs.
+- **`weekly: null` = no schedule stated**, not an empty week → status
+  `unknown`, no ring, no calendar; the why lives in `notes`. Two entries:
+  よしもと劇場 (営業時間 withdrawn upstream, 2026-09 — "check the 売店's X")
+  and 幻のから揚げ (stadium stall, `キックオフ3時間前～試合開始` on アスルクラロ
+  home-game days — both ends hang off a fixture list the KML never states). The
+  rule tier reads よしもと's `平日：不定休、土日祝：変動` as closed *every* day
+  → `closed: []` is the correction. Not `manual`: nothing is asserted beyond the
+  source, and a match-day calendar would need an `open_dates` field that goes
+  stale every season.
 - **A hash miss never creates a DB row.** Upsert key is `id` (KML position);
   the hash only indexes the override file. A miss (new location, or upstream
   text edited) recomputes `hours_json` from the rule tier and bumps
@@ -329,11 +342,12 @@ is *honest* status, not maximal coverage: `unknown` is a first-class outcome.
   override must not keep overriding changed source data.
 - **Intervals are minutes from midnight** (`600` = 10:00). `11:00～26:00` →
   `[660, 1560]`; the frontend looks back a day for `end > 1440`, so 01:00 still
-  reads as open. A **null end** = "opens then, close not stated" — only
-  よしもと劇場's `土日祝11:30ー公演終了時間`. Override tier only; the rule tier can't know a
-  close was meant but omitted (asserted in `test_hours_golden.py`). Empty days
-  were the alternative and were worse — indistinguishable from a day the source
-  never mentions, so 11 土日祝 read *closed* against the very text stating the
+  reads as open. A **null end** = "opens then, close not stated" — no
+  corpus entry since よしもと劇場's `土日祝11:30ー公演終了時間` was withdrawn
+  upstream; mechanism kept for the next one. Override tier only; the rule
+  tier can't know a close was meant but omitted (asserted in
+  `test_hours_golden.py`). Empty days were the alternative and were worse —
+  indistinguishable from a day the source never mentions, so 11 土日祝 read *closed* against the very text stating the
   opening time. Inventing an end is the other wrong answer: the ring claims
   まもなく閉店 at an hour nobody wrote. Frontend: `'open'`, never `closing_soon`,
   never overnight.
@@ -448,11 +462,12 @@ single unbreakable token the fast path answers with no entry at all.
 - **Three destinations, not two.** Content leaves an entry by `lines` (stays in
   its own field), `extra` (→ その他) or **`to_holidays`** (営業時間 → 定休日,
   `hours` entries only). All three count toward reconstructing `_text`, which
-  is what stops a move becoming a loss. `to_holidays` exists because 3
+  is what stops a move becoming a loss. `to_holidays` exists because 2
   locations write their closure days into the 営業時間 text (`休館日／毎週月曜日…`,
-  `ビル休館日／年末年始、点検日`, `（休館日あり）`) and carry **no 定休日 label at
-  all** → the panel showed a 定休日 of `なし`, invented by `normalize_holidays`
-  rather than stated by the source, directly above 営業時間 listing the very
+  `ビル休館日／年末年始、点検日`; よしもと劇場's `（休館日あり）` until
+  upstream rewrote it) and carry **no 定休日 label at all** → the panel
+  showed a 定休日 of `なし`, invented by `normalize_holidays` rather than
+  stated by the source, directly above 営業時間 listing the very
   closures it denied. `build_display_json` drops that `HOLIDAYS_PLACEHOLDER`
   when real closure lines arrive; keeping both only moves the contradiction.
   Caveats that are genuinely about *hours* stay put (`※予約により変更あり`,
@@ -763,8 +778,8 @@ month-sweep agreement invariant below) — a per-change gate, not a CI ritual.
   `test_display_golden.py`'s address coverage check depends on.
 - **`test_hours_golden.py` is the highest-value file.** `hours_parsed.json`
   carries `_raw_hours`/`_raw_holidays` beside each expected parse, so it
-  doubles as a golden corpus: the rule tier must reproduce 113 of the 125
-  entries exactly and must still *fail* on exactly the 12 `CORRECTIONS` keys (a
+  doubles as a golden corpus: the rule tier must reproduce 114 of the 128
+  entries exactly and must still *fail* on exactly the 14 `CORRECTIONS` keys (a
   stale hand-fix is as much a bug as a regression). Also pins every entry
   against the frontend's `HoursJson` shape, and allowlists the entries with a
   legitimate source-text hours gap so a *new* gap fails — `KNOWN_HOUR_GAPS`,
@@ -790,7 +805,7 @@ month-sweep agreement invariant below) — a per-change gate, not a CI ritual.
   entry, ids `field:name`. Imports **nothing** from `tools/` — unlike
   `test_hours_golden.py`, which couples `make test` to the generator. Coverage
   is checkable offline for three of four fields because `hours_parsed.json`
-  already carries `_raw_hours`/`_raw_holidays`/`_names` for all 136 locations;
+  already carries `_raw_hours`/`_raw_holidays`/`_names` for all 139 locations;
   `address` is why the generator unions `fixtures/sample.kml`'s keys. For new
   shapes, grep `display_lines.json` for `[（(]`.
 - **`test_db.py` asserts on `UPSERT_SQL` as a string** — the one irreversible
