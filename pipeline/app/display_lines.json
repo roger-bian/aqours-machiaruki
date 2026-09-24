@@ -245,7 +245,7 @@
  },
  "1b3b89d092f4ed2c": {
   "_field": "name",
-  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_names": ["ラブライブ！サンシャイン!! プレミアムショップ"],
   "_raw": "ラブライブ！サンシャイン!!\nプレミアムショップ",
   "_text": "ラブライブ！サンシャイン!! プレミアムショップ",
   "lines": [
@@ -303,7 +303,7 @@
  },
  "231a11e2c0e1f212": {
   "_field": "holidays",
-  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_names": ["ラブライブ！サンシャイン!! プレミアムショップ"],
   "_raw": "なし<br>https://premiumstore.jp/RealShop/lovelive_BiVinumazu/",
   "_text": "なし\nhttps://premiumstore.jp/RealShop/lovelive_BiVinumazu/",
   "lines": [
@@ -388,6 +388,19 @@
   ],
   "extra": [
    "https://twitter.com/hicreate1"
+  ],
+  "confidence": "verified"
+ },
+ "2d15e5ecdb518882": {
+  "_field": "address",
+  "_names": ["松城家住宅"],
+  "_raw": "沼津市戸田72<br>TEL／0558-94-5150",
+  "_text": "沼津市戸田72\nTEL／0558-94-5150",
+  "lines": [
+   "沼津市戸田72"
+  ],
+  "extra": [
+   "TEL／0558-94-5150"
   ],
   "confidence": "verified"
  },
@@ -515,6 +528,20 @@
    "17:00～21:00"
   ],
   "extra": [],
+  "confidence": "verified"
+ },
+ "3bb3e962554121ef": {
+  "_field": "holidays",
+  "_names": ["プラサヴェルデ"],
+  "_raw": "年中無休<br>※施設保守点検等のため休館日あり<br>https://www.plazaverde.jp",
+  "_text": "年中無休\n※施設保守点検等のため休館日あり\nhttps://www.plazaverde.jp",
+  "lines": [
+   "年中無休",
+   "※施設保守点検等のため休館日あり"
+  ],
+  "extra": [
+   "https://www.plazaverde.jp"
+  ],
   "confidence": "verified"
  },
  "3dd6fb21a44e4d04": {
@@ -907,7 +934,7 @@
  },
  "5b1bb1e44e19c19b": {
   "_field": "address",
-  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_names": ["海鮮丼と魚河岸定食 かもめ丸", "千本一"],
   "_raw": "静岡県 沼津市 千本港町 101 沼津みなと新鮮館前(スタンプは縁日コーナーに設置しています)",
   "_text": "静岡県 沼津市 千本港町 101 沼津みなと新鮮館前(スタンプは縁日コーナーに設置しています)",
   "lines": [
@@ -1029,9 +1056,21 @@
   ],
   "confidence": "verified"
  },
+ "6f543275a090afa2": {
+  "_field": "holidays",
+  "_names": ["松城家住宅"],
+  "_raw": "水曜日、年末年始",
+  "_text": "水曜日、年末年始",
+  "lines": [
+   "水曜日",
+   "年末年始"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
  "72de2f2cbccb1a24": {
   "_field": "address",
-  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_names": ["ラブライブ！サンシャイン!! プレミアムショップ"],
   "_raw": "沼津市大手町1-1-5　BiVi沼津 1F",
   "_text": "沼津市大手町1-1-5 BiVi沼津 1F",
   "lines": [
@@ -1065,7 +1104,7 @@
  },
  "75d3b57beede3829": {
   "_field": "holidays",
-  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_names": ["海鮮丼と魚河岸定食 かもめ丸", "千本一"],
   "_raw": "なし<br>https://www.senbonichi-kamomemaru.jp/",
   "_text": "なし\nhttps://www.senbonichi-kamomemaru.jp/",
   "lines": [
@@ -1183,6 +1222,20 @@
   ],
   "confidence": "verified"
  },
+ "817fdb6ff7695c3b": {
+  "_field": "hours",
+  "_names": ["幻のから揚げ"],
+  "_raw": "キックオフ3時間前～試合開始まで<br>※雨天決行荒天の場合は中止の場合がございます。<br>https://maboroshinokaraage.shopinfo.jp/",
+  "_text": "キックオフ3時間前～試合開始まで\n※雨天決行荒天の場合は中止の場合がございます。\nhttps://maboroshinokaraage.shopinfo.jp/",
+  "lines": [
+   "キックオフ3時間前～試合開始まで",
+   "※雨天決行荒天の場合は中止の場合がございます。"
+  ],
+  "extra": [
+   "https://maboroshinokaraage.shopinfo.jp/"
+  ],
+  "confidence": "verified"
+ },
  "854b37d4d8573856": {
   "_field": "name",
   "_names": ["三交イン 沼津駅前"],
@@ -1277,7 +1330,7 @@
  },
  "94e9d1c537c86bef": {
   "_field": "hours",
-  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_names": ["ラブライブ！サンシャイン!! プレミアムショップ"],
   "_raw": "平日11:00 ～ 19:00<br>　　　　　土曜・日曜・祝日11:00 ～ 20:00",
   "_text": "平日11:00～19:00\n土曜・日曜・祝日11:00～20:00",
   "lines": [
@@ -1344,6 +1397,20 @@
   "lines": [
    "オーシャン ビュー フジミ"
   ],
+  "confidence": "verified"
+ },
+ "9f6e74ddf36c0785": {
+  "_field": "address",
+  "_names": ["幻のから揚げ"],
+  "_raw": "愛鷹広域公園多目的競技場（沼津市足高202）<br>出店エリア／スタジアム外イベント広場",
+  "_text": "愛鷹広域公園多目的競技場（沼津市足高202）\n出店エリア／スタジアム外イベント広場",
+  "_comment": "会場, not 住所 - an event stall; 出店エリア says where at the venue",
+  "lines": [
+   "愛鷹広域公園多目的競技場",
+   "（沼津市足高202）",
+   "出店エリア／スタジアム外イベント広場"
+  ],
+  "extra": [],
   "confidence": "verified"
  },
  "a1151999ceaccc27": {
@@ -1645,7 +1712,7 @@
  },
  "ce5c41cc9fc97c25": {
   "_field": "name",
-  "_names": ["海鮮丼と魚河岸定食\nかもめ丸"],
+  "_names": ["海鮮丼と魚河岸定食 かもめ丸"],
   "_raw": "海鮮丼と魚河岸定食\nかもめ丸",
   "_text": "海鮮丼と魚河岸定食 かもめ丸",
   "lines": [
@@ -1727,6 +1794,17 @@
   ],
   "confidence": "verified"
  },
+ "ed31c621de353865": {
+  "_field": "hours",
+  "_names": ["松城家住宅"],
+  "_raw": "9:00～16:30(入館16:00)",
+  "_text": "9:00～16:30(入館16:00)",
+  "lines": [
+   "9:00～16:30(入館16:00)"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
  "ede6bfdbea5a816b": {
   "_field": "address",
   "_names": ["シネマサンシャイン沼津"],
@@ -1737,6 +1815,19 @@
    "BiVi沼津4F"
   ],
   "extra": [],
+  "confidence": "verified"
+ },
+ "f112d5d0d4ebba5c": {
+  "_field": "address",
+  "_names": ["プラサヴェルデ"],
+  "_raw": "静岡県沼津市大手町1-1-4<br>TEL／055-920-4100",
+  "_text": "静岡県沼津市大手町1-1-4\nTEL／055-920-4100",
+  "lines": [
+   "静岡県沼津市大手町1-1-4"
+  ],
+  "extra": [
+   "TEL／055-920-4100"
+  ],
   "confidence": "verified"
  },
  "f34338715804651f": {
@@ -1802,7 +1893,7 @@
  },
  "fa64cc510636cc07": {
   "_field": "hours",
-  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_names": ["海鮮丼と魚河岸定食 かもめ丸", "千本一"],
   "_raw": "平日　11:00〜14:30（L.O.）、土日祝　10:30〜14:30（L.O.）",
   "_text": "平日11:00〜14:30（L.O.）、土日祝10:30〜14:30（L.O.）",
   "lines": [
