@@ -130,6 +130,23 @@ CORRECTIONS = {
         'closed': [],
         'notes': ['営業時間は公式X（@nmz_goods）で要確認'],
     },
+    # 幻のから揚げ - a stall outside the stadium on アスルクラロ沼津 home-game
+    # days only, open キックオフ3時間前～試合開始. Both ends hang off a kickoff
+    # the source never states, so like よしもと劇場 there is no schedule to
+    # evaluate; the fixture list is the external source, and the note says so.
+    # (The ホームゲーム開催日 line sits above メンバー／, outside every label.)
+    '5e12fa41ef7d2efa': {
+        'notes': ['アスルクラロ沼津ホームゲーム開催日のみ出店',
+                  'キックオフ3時間前～試合開始まで（日程は公式サイトで要確認）',
+                  '荒天時は中止の場合あり'],
+        'irregular': True,
+    },
+    # プラサヴェルデ - 年中無休 + ※施設保守点検等のため休館日あり, the same
+    # maintenance caveat as びゅうお
+    'a68e9d01e26e64c3': {
+        'notes': ['施設保守点検等による休館日あり'],
+        'irregular': True,
+    },
 }
 
 

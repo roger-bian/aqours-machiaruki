@@ -1031,6 +1031,24 @@
   "confidence": "verified",
   "notes": []
  },
+ "5e12fa41ef7d2efa": {
+  "_names": ["幻のから揚げ"],
+  "_raw_hours": "キックオフ3時間前～試合開始まで<br>※雨天決行荒天の場合は中止の場合がございます。<br>https://maboroshinokaraage.shopinfo.jp/",
+  "_raw_holidays": "",
+  "weekly": null,
+  "closed": [],
+  "closed_nth": [],
+  "closed_dates": [],
+  "closed_last_weekday": false,
+  "hol_overrides_closed": false,
+  "hol_defers_closed": false,
+  "closed_after_hol": false,
+  "always_open": false,
+  "irregular": true,
+  "permanently_closed": false,
+  "confidence": "verified",
+  "notes": ["アスルクラロ沼津ホームゲーム開催日のみ出店", "キックオフ3時間前～試合開始まで（日程は公式サイトで要確認）", "荒天時は中止の場合あり"]
+ },
  "6320becb05bb95d0": {
   "_names": ["ゲーマーズ沼津店"],
   "_raw_hours": "平日 11:00～20:00<br>土日祝 10:0～20:00",
@@ -1248,7 +1266,7 @@
   "notes": []
  },
  "70d7b5646fa00c41": {
-  "_names": ["ラブライブ！サンシャイン!!\nプレミアムショップ"],
+  "_names": ["ラブライブ！サンシャイン!! プレミアムショップ"],
   "_raw_hours": "平日11:00 ～ 19:00<br>　　　　　土曜・日曜・祝日11:00 ～ 20:00",
   "_raw_holidays": "なし<br>https://premiumstore.jp/RealShop/lovelive_BiVinumazu/",
   "weekly": {
@@ -1503,6 +1521,33 @@
    "sat": [[570, 1140]],
    "sun": [[570, 1080]],
    "hol": [[570, 1080]]
+  },
+  "closed": ["wed"],
+  "closed_nth": [],
+  "closed_dates": [],
+  "closed_last_weekday": false,
+  "hol_overrides_closed": false,
+  "hol_defers_closed": false,
+  "closed_after_hol": false,
+  "always_open": false,
+  "irregular": false,
+  "permanently_closed": false,
+  "confidence": "verified",
+  "notes": []
+ },
+ "84729f2e96f654e7": {
+  "_names": ["松城家住宅"],
+  "_raw_hours": "9:00～16:30(入館16:00)",
+  "_raw_holidays": "水曜日、年末年始",
+  "weekly": {
+   "mon": [[540, 990]],
+   "tue": [[540, 990]],
+   "wed": [],
+   "thu": [[540, 990]],
+   "fri": [[540, 990]],
+   "sat": [[540, 990]],
+   "sun": [[540, 990]],
+   "hol": [[540, 990]]
   },
   "closed": ["wed"],
   "closed_nth": [],
@@ -2062,6 +2107,33 @@
   "confidence": "verified",
   "notes": []
  },
+ "a68e9d01e26e64c3": {
+  "_names": ["プラサヴェルデ"],
+  "_raw_hours": "9:00～22:00",
+  "_raw_holidays": "年中無休<br>※施設保守点検等のため休館日あり<br>https://www.plazaverde.jp",
+  "weekly": {
+   "mon": [[540, 1320]],
+   "tue": [[540, 1320]],
+   "wed": [[540, 1320]],
+   "thu": [[540, 1320]],
+   "fri": [[540, 1320]],
+   "sat": [[540, 1320]],
+   "sun": [[540, 1320]],
+   "hol": [[540, 1320]]
+  },
+  "closed": [],
+  "closed_nth": [],
+  "closed_dates": [],
+  "closed_last_weekday": false,
+  "hol_overrides_closed": false,
+  "hol_defers_closed": false,
+  "closed_after_hol": false,
+  "always_open": false,
+  "irregular": true,
+  "permanently_closed": false,
+  "confidence": "verified",
+  "notes": ["施設保守点検等による休館日あり"]
+ },
  "a714447b082e1783": {
   "_names": ["玉子焼 木村屋"],
   "_raw_hours": "11:30～15:30",
@@ -2388,7 +2460,7 @@
   "notes": []
  },
  "c3afd452ed4d345c": {
-  "_names": ["海鮮丼と魚河岸定食\nかもめ丸", "千本一"],
+  "_names": ["海鮮丼と魚河岸定食 かもめ丸", "千本一"],
   "_raw_hours": "平日　11:00〜14:30（L.O.）、土日祝　10:30〜14:30（L.O.）",
   "_raw_holidays": "なし<br>https://www.senbonichi-kamomemaru.jp/",
   "weekly": {

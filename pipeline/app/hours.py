@@ -50,7 +50,7 @@ OVERRIDES = _load_overrides()
 def override_key(raw_hours, raw_holidays):
     """Content-address the *raw* input, so identical source text always yields
     an identical parse. Two consequences worth knowing: locations whose text
-    matches exactly share one entry (136 locations -> 125 keys), and a field
+    matches exactly share one entry (139 locations -> 128 keys), and a field
     that is absent still hashes fine (which is what makes the 三交イン manual
     entry stable across runs)."""
     payload = f'{raw_hours or ""}\x1f{raw_holidays or ""}'

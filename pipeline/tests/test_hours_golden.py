@@ -1,7 +1,7 @@
 """Whole-corpus checks against app/hours_parsed.json.
 
 That file is not just configuration - it carries `_raw_hours`/`_raw_holidays`
-next to the expected parse for all 125 keys, which makes it a golden corpus for
+next to the expected parse for all 128 keys, which makes it a golden corpus for
 free. These tests need no network, no database and no mocks, and they cover the
 one thing the frontend actually depends on: that `hours_json` keeps its shape
 and that the rule tier still reproduces the entries nobody hand-corrected.
@@ -137,9 +137,9 @@ def test_lookup_round_trips_and_strips_review_keys(key, entry):
 
 def test_rule_tier_reproduces_all_but_the_hand_fixed_entries():
     """The sharpest invariant available here. The committed file was generated
-    by the rule tier and then hand-corrected in 12 places, so the rule tier must
-    still reproduce the other 113 exactly - and must still *fail* to reproduce
-    those 12, otherwise a correction has gone stale and is overriding data that
+    by the rule tier and then hand-corrected in 14 places, so the rule tier must
+    still reproduce the other 114 exactly - and must still *fail* to reproduce
+    those 14, otherwise a correction has gone stale and is overriding data that
     no longer needs it.
     """
     divergent = set()
