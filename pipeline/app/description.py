@@ -3,7 +3,7 @@ import re
 # labels are not always all present in a given entry's Description (e.g. some
 # newer entries have no member or business-hours label), so fields are located
 # by position rather than assumed to sit adjacent to a fixed set of neighbors
-FIELD_LABELS = ['メンバー／', '住所／', '営業時間／', '定休日／']
+FIELD_LABELS = ['メンバー／', '住所／', '会場／', '営業時間／', '定休日／']
 
 
 def normalize_hours(text, br=' '):
@@ -39,7 +39,9 @@ def parse_description(text):
     raw_hours = fields.get('営業時間／', '')
     raw_holidays = fields.get('定休日／', '')
 
-    raw_address = fields.get('住所／', '')
+    # an event stall (幻のから揚げ) has no 住所 and gives its venue as 会場
+    # instead; unlabelled it rode along inside the member string
+    raw_address = fields.get('住所／') or fields.get('会場／', '')
 
     hours = normalize_hours(raw_hours)
 
