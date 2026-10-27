@@ -290,6 +290,18 @@
   ],
   "confidence": "verified"
  },
+ "22513937dcee81a0": {
+  "_field": "hours",
+  "_names": ["幻のから揚げ"],
+  "_raw": "キックオフ3時間前～試合開始まで<br>※雨天決行荒天の場合は中止の場合がございます。",
+  "_text": "キックオフ3時間前～試合開始まで\n※雨天決行荒天の場合は中止の場合がございます。",
+  "lines": [
+   "キックオフ3時間前～試合開始まで",
+   "※雨天決行荒天の場合は中止の場合がございます。"
+  ],
+  "extra": [],
+  "confidence": "verified"
+ },
  "22e9c7c934d19637": {
   "_field": "name",
   "_names": ["駿河の味　どんむす"],
@@ -1219,20 +1231,6 @@
   "lines": [
    "アニメイト",
    "沼津店"
-  ],
-  "confidence": "verified"
- },
- "817fdb6ff7695c3b": {
-  "_field": "hours",
-  "_names": ["幻のから揚げ"],
-  "_raw": "キックオフ3時間前～試合開始まで<br>※雨天決行荒天の場合は中止の場合がございます。<br>https://maboroshinokaraage.shopinfo.jp/",
-  "_text": "キックオフ3時間前～試合開始まで\n※雨天決行荒天の場合は中止の場合がございます。\nhttps://maboroshinokaraage.shopinfo.jp/",
-  "lines": [
-   "キックオフ3時間前～試合開始まで",
-   "※雨天決行荒天の場合は中止の場合がございます。"
-  ],
-  "extra": [
-   "https://maboroshinokaraage.shopinfo.jp/"
   ],
   "confidence": "verified"
  },
