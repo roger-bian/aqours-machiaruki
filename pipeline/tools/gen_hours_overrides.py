@@ -135,7 +135,7 @@ CORRECTIONS = {
     # the source never states, so like よしもと劇場 there is no schedule to
     # evaluate; the fixture list is the external source, and the note says so.
     # (The ホームゲーム開催日 line sits above メンバー／, outside every label.)
-    '5e12fa41ef7d2efa': {
+    '56eebd561a6c677c': {
         'notes': ['アスルクラロ沼津ホームゲーム開催日のみ出店',
                   'キックオフ3時間前～試合開始まで（日程は公式サイトで要確認）',
                   '荒天時は中止の場合あり'],
